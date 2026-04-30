@@ -18,8 +18,6 @@ OpenEmu Silicon now supports [RetroAchievements](https://retroachievements.org) 
 
 Your login token is stored securely in your Keychain and propagated automatically to each supported core when a game loads — no per-game setup needed. When you unlock an achievement, an in-game banner appears at the bottom of the screen with the achievement name and point value.
 
-**Hardcore mode** is available in Preferences → Achievements. Enabling it disables save states, rewind, and fast-forward for leaderboard eligibility — only real skill counts.
-
 For setup instructions, supported game lists, and troubleshooting, see the [RetroAchievements wiki page](https://github.com/nickybmon/OpenEmu-Silicon/wiki/RetroAchievements).
 
 More cores are on the way — see the [Phase 2 & 3 rollout tracker](https://github.com/nickybmon/OpenEmu-Silicon/issues/258) for what's coming next.
