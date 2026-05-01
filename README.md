@@ -58,21 +58,17 @@ brew install --cask openemu-silicon
 ## What's New in v1.0.7
 
 - **RetroAchievements — Phase 1** — Earn achievements automatically as you play across 9 cores and 7 systems: NES (FCEU, Nestopia), SNES (SNES9x, BSNES), Game Boy / GBC (Gambatte, mGBA), Game Boy Advance (mGBA), and Genesis / Master System / Game Gear / Sega CD / SG-1000 (Genesis Plus GX). Log in once in Preferences → Achievements. See the [RetroAchievements wiki page](https://github.com/nickybmon/OpenEmu-Silicon/wiki/RetroAchievements) for setup.
-- **Play With… core selection** — Right-click any game in your library and choose **Play With…** to pick which core to use for that session, without changing your default.
+- **Play With… core selection** — Right-click any game in your library and choose **Play With…** to pick which core to use for that session, without changing your default. (only applies to systems with multiple cores installed)
 - **3DO now works out of the box** — A bundle identifier bug was silently dropping the 3DO system at launch. Fixed — 3DO appears in your console list automatically with no extra steps.
-- **SNES rewind fixed** — Rewinding no longer produces a blank screen.
-- **PSX black bar fixed** — PlayStation games no longer show a black bar on the right side of the screen.
 - **N64 GameShark cheats fixed** — Cheat codes now apply correctly in Mupen64Plus.
 - **Dreamcast speed and audio fixed** — Flycast no longer runs faster than real-time on high-refresh-rate displays, and the distorted audio that came with it is gone.
 - **NES color palette restored** — FCEU was rendering all NES games with a washed-out grey palette due to a regression. Fixed.
 
 **Earlier highlights:**
-- **Sony PSP** — PPSSPP-Core rebuilt and integrated.
 - **Nintendo 64** — Mupen64Plus revived and working.
 - **Sega Dreamcast** — Migrated from Reicast to Flycast for a significantly more stable experience.
 - **GameCube / Wii** — Dolphin core integrated and working.
 - **ScreenScraper cover art** — Automatic box art via [ScreenScraper](https://www.screenscraper.fr). Enter credentials in Preferences → Cover Art.
-- **macOS 26 (Tahoe) compatibility** — Full support verified.
 
 ---
 
