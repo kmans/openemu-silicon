@@ -4,6 +4,7 @@
 # Usage:
 #   ./Scripts/verify.sh                        # build + analyze + plist + codesign on the main app
 #   ./Scripts/verify.sh --launch               # above, plus 5s smoke launch with log + crash check
+#   ./Scripts/verify.sh --test                 # above, plus run OpenEmuTests unit test target
 #   ./Scripts/verify.sh --core <CoreName>      # build a core scheme + install + verify the installed plugin
 #   ./Scripts/verify.sh --core <CoreName> --launch
 #
@@ -23,12 +24,14 @@ INSTALLED_APP_DEFAULT="$HOME/Library/Application Support/OpenEmu"
 
 LAUNCH=0
 CORE=""
+RUN_TESTS=0
 FAILURES=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --launch) LAUNCH=1; shift ;;
     --core) CORE="${2:-}"; shift 2 ;;
+    --test) RUN_TESTS=1; shift ;;
     -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
     *) echo "unknown flag: $1" >&2; exit 2 ;;
   esac
@@ -186,6 +189,25 @@ if [ "$LAUNCH" -eq 1 ] && [ -z "$CORE" ] && [ -n "${ARTIFACT:-}" ] && [ -e "$ART
     else
       pass "no new crash reports"
     fi
+  fi
+fi
+
+# --- Optional unit tests (OpenEmuTests target) ---------------------------
+
+if [ "$RUN_TESTS" -eq 1 ] && [ -z "$CORE" ]; then
+  info "running OpenEmuTests (xcodebuild test)"
+  TEST_LOG=$(mktemp -t verify_test.XXXXXX)
+  if xcodebuild test \
+       -workspace "$WORKSPACE" \
+       -scheme OpenEmu \
+       -configuration Debug \
+       -destination 'platform=macOS,arch=arm64' \
+       > "$TEST_LOG" 2>&1; then
+    PASS_COUNT=$(grep -c 'passed' "$TEST_LOG" 2>/dev/null || true)
+    pass "OpenEmuTests ($PASS_COUNT tests passed)"
+  else
+    fail "OpenEmuTests — see $TEST_LOG (last 30 lines below)"
+    tail -30 "$TEST_LOG"
   fi
 fi
 
