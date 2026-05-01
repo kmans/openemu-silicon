@@ -24,25 +24,27 @@ Fixes #
 
 ## How to test locally
 
+**1. Navigate to your local clone and check out this PR**
+
 ```bash
-# 0. Navigate to your local clone of this repo
-cd ~/Documents/Cursor/Open\ Emu   # adjust if your clone is elsewhere
-
-# 1. Check out this PR
+cd ~/Documents/Cursor/Open\ Emu
 gh pr checkout <PR_NUMBER> --repo nickybmon/OpenEmu-Silicon
+```
 
-# 2. Build — use the scheme that covers the changed target.
-#    For main app changes: -scheme OpenEmu
-#    For Flycast core changes: -scheme "OpenEmu + Flycast" with 'clean build'
-#    (incremental builds will not recompile core C++ files)
+**2. Build** — replace `-scheme OpenEmu` with the scheme that covers your change (e.g. `"OpenEmu + Flycast"` for Flycast; add `clean` before `build` for C++ cores)
+
+```bash
 xcodebuild \
   -workspace OpenEmu-metal.xcworkspace \
   -scheme OpenEmu \
   -configuration Debug \
   -destination 'platform=macOS,arch=arm64' \
   build 2>&1 | tail -20
+```
 
-# 3. Resolve the exact build products dir for this workspace (avoids matching other worktrees)
+**3. Launch** (and optionally install a rebuilt core plugin first)
+
+```bash
 BUILD_PRODUCTS=$(xcodebuild \
   -workspace OpenEmu-metal.xcworkspace \
   -scheme OpenEmu \
@@ -50,15 +52,19 @@ BUILD_PRODUCTS=$(xcodebuild \
   -showBuildSettings 2>/dev/null \
   | awk '/^\s+BUILT_PRODUCTS_DIR/{print $3; exit}')
 
-# 4. If this PR touches a core (Flycast, etc.), install the rebuilt binary:
-#    cp -f "$BUILD_PRODUCTS/<CoreName>.oecoreplugin/Contents/MacOS/<CoreName>" \
-#      ~/Library/Application\ Support/OpenEmu/Cores/<CoreName>.oecoreplugin/Contents/MacOS/<CoreName>
-
-# 5. Launch
 open "$BUILD_PRODUCTS/OpenEmu.app"
 ```
 
-<!-- Replace <PR_NUMBER> with this PR's number. Add any PR-specific setup steps here (e.g. BIOS files needed, permissions to revoke first, specific ROM to test with). -->
+If this PR touches a core, install it before launching:
+
+```bash
+cp -R "$BUILD_PRODUCTS/<CoreName>.oecoreplugin" \
+  ~/Library/Application\ Support/OpenEmu/Cores/<CoreName>.oecoreplugin
+codesign --force --sign - \
+  ~/Library/Application\ Support/OpenEmu/Cores/<CoreName>.oecoreplugin
+```
+
+<!-- Replace <PR_NUMBER> and add any PR-specific setup here (BIOS files, permissions to revoke, specific ROM to test with). -->
 
 ---
 
