@@ -35,19 +35,14 @@ xcodebuild \
   -configuration Debug \
   -destination 'platform=macOS,arch=arm64' \
   build 2>&1 | tail -20
-BUILD_PRODUCTS=$(xcodebuild \
-  -workspace OpenEmu-metal.xcworkspace \
-  -scheme OpenEmu \
-  -configuration Debug \
-  -showBuildSettings 2>/dev/null \
-  | awk '/^\s+BUILT_PRODUCTS_DIR/{print $3; exit}')
-open "$BUILD_PRODUCTS/OpenEmu.app"
+DEBUG_DIR=$(ls -dt ~/Library/Developer/Xcode/DerivedData/OpenEmu-metal-*/Build/Products/Debug 2>/dev/null | head -1)
+open "$DEBUG_DIR/OpenEmu.app"
 ```
 
 If this PR touches a core, install it before the `open` line:
 
 ```bash
-cp -R "$BUILD_PRODUCTS/<CoreName>.oecoreplugin" \
+cp -R "$DEBUG_DIR/<CoreName>.oecoreplugin" \
   ~/Library/Application\ Support/OpenEmu/Cores/<CoreName>.oecoreplugin
 codesign --force --sign - \
   ~/Library/Application\ Support/OpenEmu/Cores/<CoreName>.oecoreplugin
