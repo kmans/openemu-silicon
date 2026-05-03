@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/library-screenshot.png" width="800" alt="OpenEmu library running natively on Apple Silicon"/>
+  <img width="2276" height="1550" alt="OpenEmu Library" src="https://github.com/user-attachments/assets/3797ba95-3e8c-49f6-9d3d-ab1cca6e70b9" />
 </p>
 
 ---
