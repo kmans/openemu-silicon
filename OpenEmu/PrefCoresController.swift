@@ -23,237 +23,674 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import Cocoa
+import OpenEmuKit
+
+// MARK: - Column identifiers
 
 private extension NSUserInterfaceItemIdentifier {
-    static let coreColumn    = NSUserInterfaceItemIdentifier("coreColumn")
     static let systemColumn  = NSUserInterfaceItemIdentifier("systemColumn")
+    static let coreColumn    = NSUserInterfaceItemIdentifier("coreColumn")
     static let versionColumn = NSUserInterfaceItemIdentifier("versionColumn")
-    
-    static let coreNameCell        = NSUserInterfaceItemIdentifier("coreNameCell")
-    static let systemListCell      = NSUserInterfaceItemIdentifier("systemListCell")
-    static let versionCell         = NSUserInterfaceItemIdentifier("versionCell")
-    static let installButtonCell   = NSUserInterfaceItemIdentifier("installBtnCell")
-    static let installProgressCell = NSUserInterfaceItemIdentifier("installProgressCell")
+    static let actionColumn  = NSUserInterfaceItemIdentifier("actionColumn")
+
+    static let systemCell    = NSUserInterfaceItemIdentifier("systemCell")
+    static let coreCell      = NSUserInterfaceItemIdentifier("coreCell")
+    static let versionCell   = NSUserInterfaceItemIdentifier("versionCell")
+    static let actionCell    = NSUserInterfaceItemIdentifier("actionCell")
 }
+
+// MARK: - RetroArch core model
+
+private struct RetroArchCore {
+    let coreName: String       // "mGBA"
+    let displayName: String    // "mGBA (RetroArch)"
+    let dylibURL: URL
+    let systemIDs: [String]    // OE system identifiers
+    let requiresHWRender: Bool // true → needs OpenGL/Vulkan context the bridge can't yet provide
+
+    var bundleIdentifier: String {
+        "retroarch.\(dylibURL.deletingPathExtension().lastPathComponent)"
+    }
+
+    var pluginName: String { "\(coreName)-RetroArch" }
+
+    var installedPluginURL: URL {
+        let coresDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/OpenEmu/Cores")
+        return coresDir.appendingPathComponent("\(pluginName).oecoreplugin")
+    }
+
+    var isPluginInstalled: Bool {
+        FileManager.default.fileExists(atPath: installedPluginURL.path)
+    }
+}
+
+// MARK: - Data model
+
+private struct SystemEntry {
+    let systemIdentifier: String
+    let systemName: String
+    var cores: [CoreDownload]
+    var retroArchCores: [RetroArchCore] = []
+
+    var activeCoreID: String? {
+        get { UserDefaults.standard.string(forKey: "defaultCore.\(systemIdentifier)") }
+        set { UserDefaults.standard.set(newValue, forKey: "defaultCore.\(systemIdentifier)") }
+    }
+
+    var activeCore: CoreDownload? {
+        let id = activeCoreID ?? ""
+        if let match = cores.first(where: { $0.bundleIdentifier.caseInsensitiveCompare(id) == .orderedSame }) {
+            return match
+        }
+        // Don't fall back if the active selection is a RetroArch core.
+        if retroArchCores.contains(where: { $0.bundleIdentifier.caseInsensitiveCompare(id) == .orderedSame }) {
+            return nil
+        }
+        return cores.first(where: { !$0.canBeInstalled }) ?? cores.first
+    }
+
+    var activeRetroArchCore: RetroArchCore? {
+        let id = activeCoreID ?? ""
+        return retroArchCores.first(where: { $0.bundleIdentifier.caseInsensitiveCompare(id) == .orderedSame })
+    }
+
+    var hasMultipleCoreOptions: Bool { (cores.count + retroArchCores.count) > 1 }
+}
+
+// MARK: - Controller
 
 final class PrefCoresController: NSViewController {
 
-    @IBOutlet var coresTableView: NSTableView!
+    private var tableView: NSTableView!
+    private var scrollView: NSScrollView!
 
-    var coreListObservation: NSKeyValueObservation?
+    private var entries: [SystemEntry] = []
+    private var coreListObservation: NSKeyValueObservation?
+
+    override func loadView() {
+        let scroll = NSScrollView()
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers  = true
+        scroll.scrollerStyle       = .overlay
+        scroll.borderType = .bezelBorder
+
+        let table = NSTableView()
+        table.usesAlternatingRowBackgroundColors = true
+        table.rowHeight = 44
+        table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
+        table.cornerView = nil
+        table.delegate   = self
+        table.dataSource = self
+
+        let columns: [(NSUserInterfaceItemIdentifier, String, CGFloat, CGFloat, CGFloat)] = [
+            (.systemColumn,  NSLocalizedString("System",      comment: "Cores prefs column"), 180, 120, 260),
+            (.coreColumn,    NSLocalizedString("Core",        comment: "Cores prefs column"), 160, 100, 240),
+            (.versionColumn, NSLocalizedString("Version",     comment: "Cores prefs column"), 110,  80, 150),
+            (.actionColumn,  "Select Core",                                                   160, 120, 10000),
+        ]
+
+        for (ident, title, width, minW, maxW) in columns {
+            let col = NSTableColumn(identifier: ident)
+            col.headerCell.title = title
+            col.width    = width
+            col.minWidth = minW
+            col.maxWidth = maxW
+            col.resizingMask = .userResizingMask
+            table.addTableColumn(col)
+        }
+
+        table.autoresizingMask = [.width]
+        scroll.documentView = table
+        self.tableView  = table
+        self.scrollView = scroll
+        self.view = scroll
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        tableView.sizeLastColumnToFit()
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
         coreListObservation = CoreUpdater.shared.observe(\CoreUpdater.coreList) { [weak self] _, _ in
-            self?.coresTableView.reloadData()
+            self?.rebuildEntries()
         }
-        CoreUpdater.shared.checkForNewCores()   // TODO: check error from completion handler
-        CoreUpdater.shared.checkForUpdates()
 
-        for column in coresTableView.tableColumns {
-            switch column.identifier {
-            case .coreColumn:
-                column.headerCell.title = NSLocalizedString("Core", comment: "Cores preferences, column header")
-            case .systemColumn:
-                column.headerCell.title = NSLocalizedString("System", comment: "Cores preferences, column header")
-            case .versionColumn:
-                column.headerCell.title = NSLocalizedString("Version", comment: "Cores preferences, column header")
-            default:
-                break
+        CoreUpdater.shared.checkForNewCores()
+        CoreUpdater.shared.checkForUpdates()
+        rebuildEntries()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            self?.rebuildEntries()
+        }
+    }
+
+    // MARK: - Data
+
+    private func rebuildEntries() {
+        let allRetroArch = scanRetroArchCores()
+
+        var map: [String: (name: String, cores: [CoreDownload])] = [:]
+        for core in CoreUpdater.shared.coreList {
+            for (index, sysID) in core.systemIdentifiers.enumerated() {
+                let raw     = index < core.systemNames.count ? core.systemNames[index] : sysID
+                let sysName = displayName(for: sysID, fallback: raw)
+                if map[sysID] == nil { map[sysID] = (name: sysName, cores: []) }
+                if !map[sysID]!.cores.contains(where: { $0.bundleIdentifier == core.bundleIdentifier }) {
+                    map[sysID]!.cores.append(core)
+                }
             }
         }
 
-        // Add "Action" table column programmatically if not exists
-        let actionColumnIdentifier = NSUserInterfaceItemIdentifier("actionColumn")
-        if coresTableView.tableColumn(withIdentifier: actionColumnIdentifier) == nil {
-            let column = NSTableColumn(identifier: actionColumnIdentifier)
-            column.headerCell.title = NSLocalizedString("Action", comment: "Cores preferences, column header")
-            column.width = 70
-            column.minWidth = 60
-            column.maxWidth = 100
-            column.resizingMask = .userResizingMask
-            coresTableView.addTableColumn(column)
+        entries = map.map { sysID, value in
+            var entry = SystemEntry(
+                systemIdentifier: sysID,
+                systemName: value.name,
+                cores: value.cores.sorted { $0.name < $1.name }
+            )
+            entry.retroArchCores = allRetroArch.filter { $0.systemIDs.contains(sysID) && !$0.isPluginInstalled }
+            return entry
+        }
+        .sorted { $0.systemName < $1.systemName }
+
+        // Add rows for systems that only exist via uninstalled RA cores.
+        // Group all RA cores for the same sysID into one row.
+        var extraMap: [String: [RetroArchCore]] = [:]
+        for raCore in allRetroArch where !raCore.isPluginInstalled {
+            for sysID in raCore.systemIDs where !entries.contains(where: { $0.systemIdentifier == sysID }) {
+                extraMap[sysID, default: []].append(raCore)
+            }
+        }
+        for (sysID, raCores) in extraMap {
+            var entry = SystemEntry(systemIdentifier: sysID, systemName: displayName(for: sysID, fallback: sysID), cores: [])
+            entry.retroArchCores = raCores
+            entries.append(entry)
         }
 
-        coresTableView.delegate = self
+        entries.sort { $0.systemName < $1.systemName }
+        tableView.reloadData()
+    }
 
-        // Reload after appcasts finish fetching so Unavailable/Install states settle.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
-            self?.coresTableView.reloadData()
-        }
+    private func displayName(for sysID: String, fallback: String) -> String {
+        guard fallback == sysID else { return fallback }
+        let last = sysID.components(separatedBy: ".").last ?? sysID
+        return last
+            .replacingOccurrences(of: "-", with: " ")
+            .split(separator: " ")
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
     }
-    
-    @IBAction func updateOrInstall(_ sender: NSButton) {
-        let row = coresTableView.row(for: sender)
-        guard row > -1 else { return }
-        updateOrInstallItem(row)
-    }
-    
-    @IBAction func revertCore(_ sender: NSButton) {
-        let row = coresTableView.row(for: sender)
-        guard row > -1 else { return }
-        let plugin = coreDownload(row)
-        
-        let alert = NSAlert()
-        alert.messageText = NSLocalizedString("Revert to previous version?", comment: "")
-        alert.informativeText = String(format: NSLocalizedString("Are you sure you want to revert '%@' to the previous version?", comment: ""), plugin.name)
-        alert.addButton(withTitle: NSLocalizedString("Revert", comment: ""))
-        alert.addButton(withTitle: NSLocalizedString("Cancel", comment: ""))
-        
-        alert.beginSheetModal(for: self.view.window!) { response in
-            if response == .alertFirstButtonReturn {
-                CoreUpdater.shared.revertCore(bundleID: plugin.bundleIdentifier) { error in
+
+    // MARK: - Actions
+
+    @objc private func actionMenuSelected(_ sender: NSMenuItem) {
+        guard let info = sender.representedObject as? (row: Int, kind: ActionKind) else { return }
+        let row = info.row
+        guard row < entries.count else { return }
+
+        switch info.kind {
+
+        case .selectCore(let bundleID):
+            entries[row].activeCoreID = bundleID
+            tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet([1, 2, 3]))
+
+        case .install, .update, .check:
+            guard let core = entries[row].activeCore else { return }
+            CoreUpdater.shared.installCoreInBackgroundUserInitiated(core)
+
+        case .revert:
+            guard let core = entries[row].activeCore else { return }
+            confirmRevert(core: core)
+
+        case .addRetroArch(let raCore):
+            entries[row].activeCoreID = raCore.bundleIdentifier
+            tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet([1, 2, 3]))
+            if !raCore.isPluginInstalled {
+                installRetroArchPlugin(raCore) { [weak self] error in
                     DispatchQueue.main.async {
                         if let error = error {
                             NSApp.presentError(error)
                         } else {
-                            self.coresTableView.reloadData()
+                            self?.rebuildEntries()
                         }
                     }
                 }
             }
         }
     }
-    
-    private func updateOrInstallItem(_ row: Int) {
-        CoreUpdater.shared.installCoreInBackgroundUserInitiated(coreDownload(row))
-    }
-    
-    private func coreDownload(_ row: Int) -> CoreDownload {
-        return CoreUpdater.shared.coreList[row]
+
+    private func confirmRevert(core: CoreDownload) {
+        let alert = NSAlert()
+        alert.messageText     = NSLocalizedString("Revert to previous version?", comment: "")
+        alert.informativeText = String(
+            format: NSLocalizedString("Are you sure you want to revert '%@' to the previous version?", comment: ""),
+            core.name)
+        alert.addButton(withTitle: NSLocalizedString("Revert", comment: ""))
+        alert.addButton(withTitle: NSLocalizedString("Cancel", comment: ""))
+        alert.beginSheetModal(for: view.window!) { response in
+            guard response == .alertFirstButtonReturn else { return }
+            CoreUpdater.shared.revertCore(bundleID: core.bundleIdentifier) { error in
+                DispatchQueue.main.async {
+                    if let error = error { NSApp.presentError(error) }
+                    else { self.rebuildEntries() }
+                }
+            }
+        }
     }
 }
 
-// MARK: - NSTableView DataSource
+// MARK: - ActionKind
+
+private enum ActionKind {
+    case selectCore(bundleID: String)
+    case install, update, check, revert
+    case addRetroArch(RetroArchCore)
+}
+
+// MARK: - NSTableViewDataSource
 
 extension PrefCoresController: NSTableViewDataSource {
-    
-    func numberOfRows(in tableView: NSTableView) -> Int {
-        return CoreUpdater.shared.coreList.count
-    }
-    
-    func tableView(_ tableView: NSTableView, objectValueFor tableColumn: NSTableColumn?, row: Int) -> Any? {
-        
-        let plugin = coreDownload(row)
+    func numberOfRows(in tableView: NSTableView) -> Int { entries.count }
+    func tableView(_ tableView: NSTableView, objectValueFor tableColumn: NSTableColumn?, row: Int) -> Any? { nil }
+}
+
+// MARK: - NSTableViewDelegate
+
+extension PrefCoresController: NSTableViewDelegate {
+
+    func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat { 44 }
+    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { false }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        guard row < entries.count else { return nil }
+        let entry = entries[row]
         let ident = tableColumn!.identifier
-        
-        if ident == .coreColumn {
-            return plugin.name
-            
-        } else if ident == .systemColumn {
-            let latestVersion = plugin.appcastItem?.version ?? plugin.version
-            return "\(plugin.systemNames.joined(separator: ", "))\n(Cur: \(plugin.version), Lat: \(latestVersion))"
-            
-        } else if ident == .versionColumn {
-            if plugin.isDownloading {
-                return nil
-            } else if plugin.canBeInstalled {
-                return NSLocalizedString("Install", comment: "Install Core")
-            } else if plugin.hasUpdate {
-                return NSLocalizedString("Update", comment: "Update Core")
+
+        switch ident {
+
+        case .systemColumn:
+            let cell = makeTextCell(.systemCell)
+            cell.textField?.stringValue = entry.systemName
+            cell.textField?.font = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+            cell.textField?.textColor = .labelColor
+            return cell
+
+        case .coreColumn:
+            let cell = makeTextCell(.coreCell)
+            if let ra = entry.activeRetroArchCore {
+                cell.textField?.stringValue = ra.displayName
+                cell.textField?.textColor = .secondaryLabelColor
+            } else if let core = entry.activeCore {
+                cell.textField?.stringValue = core.name
+                cell.textField?.textColor = .labelColor
             } else {
-                if let date = plugin.appcastItem?.pubDate {
-                    let formatter = DateFormatter()
-                    formatter.dateStyle = .medium
-                    return "\(plugin.version) (\(formatter.string(from: date)))"
+                cell.textField?.stringValue = NSLocalizedString("None", comment: "")
+                cell.textField?.textColor = .tertiaryLabelColor
+            }
+            return cell
+
+        case .versionColumn:
+            let cell = makeTextCell(.versionCell)
+            if let core = entry.activeCore {
+                let cur = core.version.isEmpty ? "—" : core.version
+                let lat = core.appcastItem?.version ?? cur
+                cell.textField?.stringValue = "Ver: \(cur)\nLat: \(lat)"
+            } else if entry.activeRetroArchCore != nil {
+                cell.textField?.stringValue = "RetroArch"
+            } else {
+                cell.textField?.stringValue = "—"
+            }
+            cell.textField?.textColor = .secondaryLabelColor
+            cell.textField?.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+            return cell
+
+        case .actionColumn:
+            return makeActionCell(for: entry, row: row)
+
+        default:
+            return nil
+        }
+    }
+
+    // MARK: - Cell builders
+
+    private func makeTextCell(_ identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
+        let cell = NSTableCellView()
+        cell.identifier = identifier
+        let tf = NSTextField(labelWithString: "")
+        tf.translatesAutoresizingMaskIntoConstraints = false
+        tf.maximumNumberOfLines = 2
+        tf.lineBreakMode = .byWordWrapping
+        cell.addSubview(tf)
+        cell.textField = tf
+        NSLayoutConstraint.activate([
+            tf.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+            tf.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+            tf.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+        ])
+        return cell
+    }
+
+    private func makeActionCell(for entry: SystemEntry, row: Int) -> NSView {
+        let cell  = NSTableCellView()
+        cell.identifier = .actionCell
+
+        let popup = NSPopUpButton(frame: .zero, pullsDown: true)
+        popup.bezelStyle  = .rounded
+        popup.controlSize = .small
+        popup.font        = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .small))
+        popup.translatesAutoresizingMaskIntoConstraints = false
+
+        let menu   = NSMenu()
+        let active = entry.activeCore
+        let activeRA = entry.activeRetroArchCore
+
+        // ── Manage installed core ────────────────────────────────────────────
+        if let core = active {
+            let mgmt: NSMenuItem
+            if core.isDownloading {
+                mgmt = disabledItem("Downloading…")
+            } else if core.canBeInstalled && core.appcastItem == nil {
+                mgmt = disabledItem(NSLocalizedString("Unavailable", comment: ""))
+            } else if core.canBeInstalled {
+                mgmt = makeItem(NSLocalizedString("Install", comment: ""), row: row, kind: .install)
+            } else if core.hasUpdate {
+                mgmt = makeItem(NSLocalizedString("Update Available", comment: ""), row: row, kind: .update)
+            } else if CoreUpdater.shared.hasBackup(bundleID: core.bundleIdentifier) {
+                mgmt = makeItem(NSLocalizedString("Revert", comment: ""), row: row, kind: .revert)
+            } else {
+                mgmt = makeItem(NSLocalizedString("Check for Update", comment: ""), row: row, kind: .check)
+            }
+            menu.addItem(mgmt)
+        } else if activeRA == nil {
+            menu.addItem(disabledItem(NSLocalizedString("No Core", comment: "")))
+        }
+
+        // ── Official core picker ─────────────────────────────────────────────
+        if entry.hasMultipleCoreOptions {
+            if !menu.items.isEmpty { menu.addItem(.separator()) }
+
+            let activeID = entry.activeCoreID
+            for core in entry.cores {
+                let item = makeItem(core.name, row: row, kind: .selectCore(bundleID: core.bundleIdentifier))
+                item.state = core.bundleIdentifier.caseInsensitiveCompare(activeID ?? "") == .orderedSame ? .on : .off
+                menu.addItem(item)
+            }
+
+            // ── RetroArch cores ──────────────────────────────────────────────
+            if !entry.retroArchCores.isEmpty {
+                menu.addItem(.separator())
+
+                for raCore in entry.retroArchCores {
+                    var label = raCore.isPluginInstalled ? raCore.displayName : "Add \(raCore.displayName)"
+                    if raCore.requiresHWRender { label += " — GPU required" }
+                    let item  = makeItem(label, row: row, kind: .addRetroArch(raCore))
+                    item.state = raCore.bundleIdentifier.caseInsensitiveCompare(activeID ?? "") == .orderedSame ? .on : .off
+                    menu.addItem(item)
                 }
-                return plugin.version
+            }
+        } else if !entry.retroArchCores.isEmpty && entry.cores.isEmpty {
+            // Only RetroArch options exist for this system.
+            if !menu.items.isEmpty { menu.addItem(.separator()) }
+            let activeID = entry.activeCoreID
+            for raCore in entry.retroArchCores {
+                var label = raCore.isPluginInstalled ? raCore.displayName : "Add \(raCore.displayName)"
+                if raCore.requiresHWRender { label += " — GPU required" }
+                let item  = makeItem(label, row: row, kind: .addRetroArch(raCore))
+                item.state = raCore.bundleIdentifier.caseInsensitiveCompare(activeID ?? "") == .orderedSame ? .on : .off
+                menu.addItem(item)
             }
         }
-        return nil
+
+        // Title item (index 0 of a pull-down is the button label)
+        let titleLabel: String
+        if let ra = activeRA {
+            titleLabel = ra.displayName
+        } else if let core = active {
+            if core.isDownloading   { titleLabel = "Downloading…" }
+            else if core.canBeInstalled { titleLabel = "Install \(core.name)" }
+            else if core.hasUpdate  { titleLabel = "⬆ \(core.name)" }
+            else                    { titleLabel = core.name }
+        } else {
+            titleLabel = NSLocalizedString("No Core", comment: "")
+        }
+        menu.insertItem(NSMenuItem(title: titleLabel, action: nil, keyEquivalent: ""), at: 0)
+
+        popup.menu = menu
+        popup.selectItem(at: 0)
+
+        cell.addSubview(popup)
+        NSLayoutConstraint.activate([
+            popup.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+            popup.trailingAnchor.constraint(lessThanOrEqualTo: cell.trailingAnchor, constant: -4),
+            popup.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+        ])
+        return cell
+    }
+
+    private func makeItem(_ title: String, row: Int, kind: ActionKind) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: #selector(actionMenuSelected(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = (row: row, kind: kind)
+        return item
+    }
+
+    private func disabledItem(_ title: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        return item
     }
 }
 
-// MARK: - NSTableView Delegate
+// MARK: - RetroArch scanner
 
-extension PrefCoresController: NSTableViewDelegate {
-    
-    func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-        return 44.0 // Increased height for better readability
-    }
-    
-    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        
-        let ident = tableColumn!.identifier
-        let plugin = coreDownload(row)
-        
-        if ident == .coreColumn {
-            let view = tableView.makeView(withIdentifier: .coreNameCell, owner: self) as! NSTableCellView
-            let color: NSColor = plugin.canBeInstalled ? .disabledControlTextColor : .labelColor
-            view.textField!.stringValue = plugin.name
-            view.textField!.textColor = color
-            return view
-            
-        } else if ident == .systemColumn {
-            let view = tableView.makeView(withIdentifier: .systemListCell, owner: self) as! NSTableCellView
-            let color: NSColor = plugin.canBeInstalled ? .disabledControlTextColor : .labelColor
-            view.textField!.stringValue = plugin.systemNames.joined(separator: ", ")
-            view.textField!.textColor = color
-            return view
-            
-        } else if ident == .versionColumn {
-            
-            let view = tableView.makeView(withIdentifier: .systemListCell, owner: self) as! NSTableCellView
-            let currentVer = plugin.version
-            let latestVer = plugin.appcastItem?.version ?? currentVer
-            view.textField?.stringValue = "Ver: \(currentVer)\nLat: \(latestVer)"
-            view.textField?.textColor = .secondaryLabelColor
-            return view
-            
-        } else if ident == NSUserInterfaceItemIdentifier("actionColumn") {
-             
-            let view = NSTableCellView()
-            let button = NSButton(title: "", target: self, action: nil)
-            button.bezelStyle = .rounded
-            button.controlSize = .small
-            button.font = NSFont.systemFont(ofSize: NSFont.systemFontSize(for: .small))
-            button.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview(button)
-            
-            NSLayoutConstraint.activate([
-                button.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                button.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-                button.widthAnchor.constraint(greaterThanOrEqualToConstant: 64)
-            ])
+extension PrefCoresController {
 
-             if plugin.isDownloading {
-                button.title = "..."
-                button.isEnabled = false
-            } else if plugin.canBeInstalled && plugin.appcastItem == nil {
-                button.title = NSLocalizedString("Unavailable", comment: "")
-                button.isEnabled = false
-            } else if plugin.canBeInstalled {
-                button.title = NSLocalizedString("Install", comment: "")
-                button.action = #selector(updateOrInstall(_:))
-            } else if plugin.hasUpdate {
-                button.title = NSLocalizedString("Update", comment: "")
-                button.action = #selector(updateOrInstall(_:))
-            } else if CoreUpdater.shared.hasBackup(bundleID: plugin.bundleIdentifier) {
-                button.title = NSLocalizedString("Revert", comment: "")
-                button.action = #selector(revertCore(_:))
-            } else {
-                button.title = NSLocalizedString("Check", comment: "")
-                button.action = #selector(updateOrInstall(_:))
+    private static let systemIDMap: [String: [String]] = [
+        // Nintendo
+        "game_boy_advance":      ["openemu.system.gba"],
+        "game_boy":              ["openemu.system.gb"],   // GBC ROMs use the GB system in OE
+        "super_nes":             ["openemu.system.snes"],
+        "nes":                   ["openemu.system.nes"],
+        "nintendo_64":           ["openemu.system.n64"],
+        "nds":                   ["openemu.system.nds"],  // OE uses "nds", not "ds"
+        "nintendo_ds":           ["openemu.system.nds"],
+        "gamecube":              ["openemu.system.gc", "openemu.system.wii"],  // Dolphin handles both
+        "wii":                   ["openemu.system.wii"],
+        "virtual_boy":           ["openemu.system.vb"],
+        "game_and_watch":        ["openemu.system.gw"],
+        "pokemon_mini":          ["openemu.system.pokemonmini"],
+        // Sony
+        "playstation":           ["openemu.system.psx"],
+        "playstation_2":         ["openemu.system.ps2"],
+        "playstation2":          ["openemu.system.ps2"],  // alternate spelling used by some cores
+        "playstation_portable":  ["openemu.system.psp"],
+        // Sega
+        "dreamcast":             ["openemu.system.dc"],
+        "sega_genesis":          ["openemu.system.sg"],   // OE uses "sg", not "genesis"
+        "sega_mega_drive":       ["openemu.system.sg"],
+        "mega_drive":            ["openemu.system.sg"],   // used by Genesis Plus GX, BlastEm, PicoDrive
+        "sega_game_gear":        ["openemu.system.gg"],
+        "game_gear":             ["openemu.system.gg"],
+        "sega_master_system":    ["openemu.system.sms"],
+        "master_system":         ["openemu.system.sms"],  // used by Gearsystem, SMS Plus GX
+        "sega_saturn":           ["openemu.system.saturn"],
+        "sega_cd":               ["openemu.system.scd"],
+        "mega_cd":               ["openemu.system.scd"],  // alternate name used by some cores
+        "sg-1000":               ["openemu.system.sg1000"],
+        // Atari
+        "atari_2600":            ["openemu.system.2600"],
+        "atari_5200":            ["openemu.system.5200"],
+        "atari_7800":            ["openemu.system.7800"],
+        "atari_lynx":            ["openemu.system.lynx"],
+        "lynx":                  ["openemu.system.lynx"],
+        "atari_jaguar":          ["openemu.system.jaguar"],  // used by Virtual Jaguar RA
+        "jaguar":                ["openemu.system.jaguar"],
+        // NEC
+        "pc_engine":             ["openemu.system.pce"],
+        "pc_engine_cd":          ["openemu.system.pcecd"],
+        "pc_fx":                 ["openemu.system.pcfx"],   // Beetle PC-FX
+        // SNK
+        "neo_geo_pocket":        ["openemu.system.ngp"],
+        "neo_geo_pocket_color":  ["openemu.system.ngp"],
+        // Bandai
+        "wonderswan":            ["openemu.system.ws"],
+        "wonderswan_color":      ["openemu.system.ws"],
+        // Other consoles
+        "3do":                   ["openemu.system.3do"],
+        "colecovision":          ["openemu.system.colecovision"],
+        "intellivision":         ["openemu.system.intellivision"],
+        "odyssey2":              ["openemu.system.odyssey2"],
+        "supervision":           ["openemu.system.sv"],
+        "vectrex":               ["openemu.system.vectrex"],
+        // Commodore / home computers
+        "commodore_c64":         ["openemu.system.c64"],
+        "commodore_c64sc":       ["openemu.system.c64"],    // VICE x64sc
+        "msx":                   ["openemu.system.msx"],
+        "amiga":                 ["openemu.system.amiga"],
+        "commodore_amiga":       ["openemu.system.amiga"],  // PUAE, Amiberry
+        // Arcade
+        "fb_alpha":              ["openemu.system.arcade"],
+        "mame":                  ["openemu.system.arcade"],
+    ]
+
+    private func scanRetroArchCores() -> [RetroArchCore] {
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser
+        let coresDir = home.appendingPathComponent("Library/Application Support/RetroArch/cores")
+        let infoDir  = home.appendingPathComponent("Library/Application Support/RetroArch/info")
+
+        guard let files = try? fm.contentsOfDirectory(at: coresDir, includingPropertiesForKeys: nil) else {
+            return []
+        }
+
+        return files
+            .filter { $0.lastPathComponent.hasSuffix("_libretro.dylib") }
+            .compactMap { dylib -> RetroArchCore? in
+                let stem    = dylib.deletingPathExtension().lastPathComponent  // e.g. "mgba_libretro"
+                let infoURL = infoDir.appendingPathComponent("\(stem).info")
+                guard let parsed = parseInfoFile(at: infoURL) else { return nil }
+                let sysIDs = parsed.systemIDs
+                guard !sysIDs.isEmpty else { return nil }
+                return RetroArchCore(
+                    coreName:         parsed.coreName,
+                    displayName:      "\(parsed.coreName) (RetroArch)",
+                    dylibURL:         dylib,
+                    systemIDs:        sysIDs,
+                    requiresHWRender: parsed.requiresHWRender
+                )
             }
-            
-            return view
+            .sorted { $0.displayName < $1.displayName }
+    }
+
+    private func parseInfoFile(at url: URL) -> (coreName: String, systemIDs: [String], requiresHWRender: Bool)? {
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        var coreName: String?
+        var systemID: String?
+        var hwRender = false
+        for line in text.components(separatedBy: .newlines) {
+            let parts = line.components(separatedBy: "=")
+            guard parts.count >= 2 else { continue }
+            let key = parts[0].trimmingCharacters(in: .whitespaces)
+            let val = parts[1...].joined(separator: "=")
+                .trimmingCharacters(in: .whitespaces)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            switch key {
+            case "corename": coreName = val
+            case "systemid": systemID = val
+            case "hw_render": hwRender = (val.lowercased() == "true")
+            default: break
+            }
+        }
+        guard let name = coreName, let sid = systemID else { return nil }
+        return (name, Self.systemIDMap[sid] ?? [], hwRender)
+    }
+
+    // MARK: - Plugin installation
+
+    private func installRetroArchPlugin(_ core: RetroArchCore, completion: @escaping (Error?) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try self._createPlugin(core)
+                completion(nil)
+            } catch {
+                completion(error)
+            }
+        }
+    }
+
+    private func _createPlugin(_ core: RetroArchCore) throws {
+        let fm      = FileManager.default
+        let plugin  = core.installedPluginURL
+        guard !fm.fileExists(atPath: plugin.path) else { return }
+
+        let macOSDir  = plugin.appendingPathComponent("Contents/MacOS")
+        let plistURL  = plugin.appendingPathComponent("Contents/Info.plist")
+        try fm.createDirectory(at: macOSDir, withIntermediateDirectories: true)
+
+        // Copy any existing bridge binary as the stub executable.
+        guard let templateBin = findTemplateBinary() else {
+            throw NSError(domain: "OpenEmu", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "No installed OpenEmu core found to use as a plugin template. Install any core from the list above first."
+            ])
+        }
+        let binaryURL = macOSDir.appendingPathComponent(core.pluginName)
+        try fm.copyItem(at: templateBin, to: binaryURL)
+
+        // Write Info.plist
+        let plist: [String: Any] = [
+            "CFBundleDevelopmentRegion": "English",
+            "CFBundleExecutable":        core.pluginName,
+            "CFBundleIdentifier":        "org.openemu.\(core.pluginName)",
+            "CFBundleInfoDictionaryVersion": "6.0",
+            "CFBundleName":              core.displayName,
+            "CFBundlePackageType":       "BNDL",
+            "CFBundleShortVersionString":"1.0",
+            "CFBundleVersion":           "1",
+            "NSPrincipalClass":          "OEGameCoreController",
+            "OEGameCoreClass":           "OELibretroCoreTranslator",
+            "OELibretroCorePath":        core.dylibURL.path,
+            "OEGameCoreName":            core.displayName,
+            "OESystemIdentifiers":       core.systemIDs,
+            "OEGameCorePlayerCount":     "2",
+        ]
+        let plistData = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+        try plistData.write(to: plistURL)
+
+        // Ad-hoc codesign
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        task.arguments     = ["--force", "--sign", "-", plugin.path]
+        try task.run()
+        task.waitUntilExit()
+    }
+
+    private func findTemplateBinary() -> URL? {
+        let coresDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/OpenEmu/Cores")
+        guard let plugins = try? FileManager.default.contentsOfDirectory(
+            at: coresDir, includingPropertiesForKeys: nil
+        ) else { return nil }
+
+        for plugin in plugins where plugin.pathExtension == "oecoreplugin" {
+            let macOS = plugin.appendingPathComponent("Contents/MacOS")
+            if let bins = try? FileManager.default.contentsOfDirectory(
+                at: macOS, includingPropertiesForKeys: nil
+            ), let bin = bins.first {
+                return bin
+            }
         }
         return nil
-    }
-    
-    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
-        return false
     }
 }
 
 // MARK: - PreferencePane
 
 extension PrefCoresController: PreferencePane {
-    
     var icon: NSImage? { NSImage(named: "cores_tab_icon") }
-    
     var panelTitle: String { "Cores" }
-    
-    var viewSize: NSSize { view.fittingSize }
+    var viewSize: NSSize { NSSize(width: 640, height: 480) }
 }
