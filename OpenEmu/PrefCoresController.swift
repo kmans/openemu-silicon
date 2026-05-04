@@ -429,7 +429,7 @@ extension PrefCoresController: NSTableViewDelegate {
 
                 for raCore in entry.retroArchCores {
                     var label = raCore.isPluginInstalled ? raCore.displayName : "Add \(raCore.displayName)"
-                    if raCore.requiresHWRender { label += " — GPU required" }
+                    if raCore.requiresHWRender { label += " — not yet supported" }
                     let item  = makeItem(label, row: row, kind: .addRetroArch(raCore))
                     item.state = raCore.bundleIdentifier.caseInsensitiveCompare(activeID ?? "") == .orderedSame ? .on : .off
                     menu.addItem(item)
@@ -441,7 +441,7 @@ extension PrefCoresController: NSTableViewDelegate {
             let activeID = entry.activeCoreID
             for raCore in entry.retroArchCores {
                 var label = raCore.isPluginInstalled ? raCore.displayName : "Add \(raCore.displayName)"
-                if raCore.requiresHWRender { label += " — GPU required" }
+                if raCore.requiresHWRender { label += " — not yet supported" }
                 let item  = makeItem(label, row: row, kind: .addRetroArch(raCore))
                 item.state = raCore.bundleIdentifier.caseInsensitiveCompare(activeID ?? "") == .orderedSame ? .on : .off
                 menu.addItem(item)
