@@ -67,32 +67,67 @@ final class ScreenScraperClient {
 
     // ScreenScraper numeric system IDs keyed by OpenEmu system identifier
     static let systemIDs: [String: Int] = [
+        // Nintendo
         "openemu.system.nes":           3,
+        "openemu.system.fds":         106,   // Famicom Disk System
         "openemu.system.snes":          4,
         "openemu.system.n64":          14,
+        "openemu.system.gc":           13,   // GameCube
+        "openemu.system.wii":          38,
         "openemu.system.gb":            9,   // Game Boy (also covers GBC — no separate GBC plugin)
         "openemu.system.gba":          12,
         "openemu.system.nds":          15,
-        "openemu.system.gg":           21,
+        "openemu.system.vb":           11,   // Virtual Boy
+        "openemu.system.pokemonmini": 211,
+
+        // Sony
+        "openemu.system.psx":          57,
+        "openemu.system.ps2":          58,
+        "openemu.system.psp":          61,
+
+        // Sega
+        "openemu.system.sg":            1,   // Mega Drive / Genesis
+        "openemu.system.sg1000":       32,   // Sega SG-1000
         "openemu.system.sms":           2,
-        "openemu.system.sg":            1,
+        "openemu.system.gg":           21,
         "openemu.system.scd":          20,
         "openemu.system.32x":          19,
-        "openemu.system.psx":          57,
         "openemu.system.saturn":       22,
         "openemu.system.dc":           23,
+
+        // Atari
         "openemu.system.2600":         26,
         "openemu.system.5200":         40,
         "openemu.system.7800":         41,
         "openemu.system.jaguar":       27,
-        "openemu.system.msx":         113,
+        "openemu.system.lynx":         28,
+        "openemu.system.atari8bit":    43,
+
+        // NEC
+        "openemu.system.pce":          31,   // PC Engine / TurboGrafx-16
+        "openemu.system.pcecd":       114,   // PC Engine CD-ROM
+        "openemu.system.pcfx":         72,
+
+        // SNK
+        "openemu.system.ngp":          82,   // Neo Geo Pocket / Color
+
+        // Bandai
+        "openemu.system.ws":           45,   // WonderSwan / WonderSwan Color
+
+        // Other home consoles
+        "openemu.system.3do":          29,
         "openemu.system.colecovision": 48,
         "openemu.system.intellivision": 115,
         "openemu.system.odyssey2":    104,
         "openemu.system.vectrex":     102,
-        "openemu.system.pokemonmini": 211,
-        "openemu.system.arcade":       75,
+        "openemu.system.sv":           24,   // Watara Supervision
+
+        // Computer / MSX
+        "openemu.system.msx":         113,
         "openemu.system.c64":          64,
+
+        // Arcade
+        "openemu.system.arcade":       75,
     ]
 
     // Preferred region tags in priority order, per OELocalizationHelper region
