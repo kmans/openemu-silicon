@@ -4,7 +4,7 @@
   xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>4DO</title>
-        <item>
+    <item>
       <title>4DO 2.3.1</title>
       <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
       <enclosure
@@ -14,7 +14,7 @@
         length="76517"
         type="application/octet-stream" />
     </item>
-<item>
+    <item>
       <title>4DO 2.3.0</title>
       <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
       <enclosure

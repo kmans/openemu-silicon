@@ -73,6 +73,7 @@
 			);
 			dependencies = (
 				87F077B023B68C64001FFC9B /* PBXTargetDependency */,
+				87FBC0C21BFC7A0000AECF5A /* PBXTargetDependency */,
 				873A363E1FE233BA0004D81D /* PBXTargetDependency */,
 				87BD9E231C2A6652006722DF /* PBXTargetDependency */,
 				87BD9E211C2A663B006722DF /* PBXTargetDependency */,
@@ -394,6 +395,7 @@
 		87DF05291BCE302F0060E2C2 /* OEDCSystemResponder.m in Sources */ = {isa = PBXBuildFile; fileRef = 87DF05171BCE302F0060E2C2 /* OEDCSystemResponder.m */; };
 		87DF05411BCE3CEA0060E2C2 /* Dreamcast.oesystemplugin in CopyFiles */ = {isa = PBXBuildFile; fileRef = 87DF04FE1BCE2D100060E2C2 /* Dreamcast.oesystemplugin */; };
 		87F077B423B68D02001FFC9B /* GameCube.oesystemplugin in Copy System Plugins to App Plugins */ = {isa = PBXBuildFile; fileRef = 94CEB26D17A84809005A2107 /* GameCube.oesystemplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		87FBC0C01BFC7A0000AECF5A /* Commodore 64.oesystemplugin in Copy System Plugins to App Plugins */ = {isa = PBXBuildFile; fileRef = 87FBC06D1BFC70FE00AECF5A /* Commodore 64.oesystemplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		87FB253B1BBC572E00E739CE /* Controller-Preferences-JAP.plist in Resources */ = {isa = PBXBuildFile; fileRef = 87FB25391BBC572E00E739CE /* Controller-Preferences-JAP.plist */; };
 		87FB253C1BBC572E00E739CE /* Controller-Preferences-NA.plist in Resources */ = {isa = PBXBuildFile; fileRef = 87FB253A1BBC572E00E739CE /* Controller-Preferences-NA.plist */; };
 		87FBC0771BFC764F00AECF5A /* OEC64SystemResponder.m in Sources */ = {isa = PBXBuildFile; fileRef = 87FBC0751BFC764F00AECF5A /* OEC64SystemResponder.m */; };
@@ -448,6 +450,7 @@
 		8F93FDDA27374F2000B59F3E /* GameInfoHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F93FDD927374F2000B59F3E /* GameInfoHelperTests.swift */; };
 		8F93FDE02737506900B59F3E /* ROMImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F93FDDF2737506900B59F3E /* ROMImporterTests.swift */; };
 		8F9410C0273A0167004C47CC /* CoreUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8375E14E1477FC0D0018DA1F /* CoreUpdater.swift */; };
+		14FEB8870D5948A1BCD26EEF /* OELibretroMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62C735BCE1E9487EA5A79659 /* OELibretroMetadata.swift */; };
 		8F94B44D25566FE00058AA94 /* NSShadow+OEAdditions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F94B44C25566FE00058AA94 /* NSShadow+OEAdditions.swift */; };
 		8F94DEC1250EC701003A1F33 /* ThumbnailProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F94DEC0250EC701003A1F33 /* ThumbnailProvider.swift */; };
 		8F94DED4250ED838003A1F33 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F94DED3250ED838003A1F33 /* PreviewViewController.swift */; };
@@ -1064,6 +1067,13 @@
 			remoteGlobalIDString = 94CEB26C17A84809005A2107;
 			remoteInfo = GameCube;
 		};
+		87FBC0C11BFC7A0000AECF5A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2A37F4A9FDCFA73011CA2CEA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 87FBC06C1BFC70FE00AECF5A;
+			remoteInfo = "Commodore 64";
+		};
 		8F94DEC4250EC701003A1F33 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2A37F4A9FDCFA73011CA2CEA /* Project object */;
@@ -1210,6 +1220,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				87F077B423B68D02001FFC9B /* GameCube.oesystemplugin in Copy System Plugins to App Plugins */,
+				87FBC0C01BFC7A0000AECF5A /* Commodore 64.oesystemplugin in Copy System Plugins to App Plugins */,
 				0E026D7220704B74B7A5E66C /* Wii.oesystemplugin in Copy System Plugins to App Plugins */,
 				873A36421FE233E00004D81D /* Saturn.oesystemplugin in Copy System Plugins to App Plugins */,
 				DEAAB8E598494A97A260F43C84A6B563 /* Dreamcast.oesystemplugin in Copy System Plugins to App Plugins */,
@@ -1561,6 +1572,9 @@
 		83753F1614F537C400D708A7 /* PrefDebugController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PrefDebugController.swift; sourceTree = "<group>"; };
 		83753F1914F5383F00D708A7 /* PrefDebugController.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = PrefDebugController.xib; sourceTree = "<group>"; };
 		8375E14E1477FC0D0018DA1F /* CoreUpdater.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreUpdater.swift; sourceTree = "<group>"; };
+		8F22765129D30551001FB9F9 /* curate-core.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = "curate-core.sh"; path = "Scripts/curate-core.sh"; sourceTree = "<group>"; };
+		8F22765129D30551001FB9FA /* Core-Curation.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "Core-Curation.md"; path = "Documentation/Core-Curation.md"; sourceTree = "<group>"; };
+		62C735BCE1E9487EA5A79659 /* OELibretroMetadata.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OELibretroMetadata.swift; sourceTree = "<group>"; };
 		837820B71907FADB0043593F /* IKRenderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IKRenderer.h; sourceTree = "<group>"; };
 		837820B81907FB2D0043593F /* IKImageWrapper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IKImageWrapper.h; sourceTree = "<group>"; };
 		837820BA1907FB6E0043593F /* IKImageBrowserView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IKImageBrowserView.h; sourceTree = "<group>"; };
@@ -3242,6 +3256,8 @@
 			children = (
 				83CACEC7196D6D1300999E70 /* Download.swift */,
 				8375E14E1477FC0D0018DA1F /* CoreUpdater.swift */,
+				62C735BCE1E9487EA5A79659 /* OELibretroMetadata.swift */,
+				8F22765129D30551001FB9FA /* Core-Curation.md */,
 				6FAD47F297164AD6B87C99DF /* OECoreMigration.swift */,
 				839310BB147802380020058E /* CoreDownload.swift */,
 			);
@@ -6588,6 +6604,7 @@
 				94A4E98D179F9A4D00AD8C7D /* OEDBSaveStatesMedia.swift in Sources */,
 				56ECCDC1488945C2A09403D7 /* OECoreMigration.swift in Sources */,
 				8F9410C0273A0167004C47CC /* CoreUpdater.swift in Sources */,
+				14FEB8870D5948A1BCD26EEF /* OELibretroMetadata.swift in Sources */,
 				94A4E992179F9D0400AD8C7D /* OEDBScreenshotsMedia.swift in Sources */,
 				94A4E996179FAB9F00AD8C7D /* OEMediaViewController.m in Sources */,
 				8F4AEAC1273594E6005C6246 /* OpenVGDB.swift in Sources */,
@@ -7156,6 +7173,11 @@
 			isa = PBXTargetDependency;
 			target = 94CEB26C17A84809005A2107 /* GameCube */;
 			targetProxy = 87F077AF23B68C64001FFC9B /* PBXContainerItemProxy */;
+		};
+		87FBC0C21BFC7A0000AECF5A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 87FBC06C1BFC70FE00AECF5A /* Commodore 64 */;
+			targetProxy = 87FBC0C11BFC7A0000AECF5A /* PBXContainerItemProxy */;
 		};
 		8F94DEC5250EC701003A1F33 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;

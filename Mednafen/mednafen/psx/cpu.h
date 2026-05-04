@@ -98,6 +98,8 @@ class PS_CPU
 
  void StateAction(StateMem *sm, const unsigned load, const bool data_only);
 
+ INLINE const uint8* GetScratchRAMData(void) const { return ScratchRAM.data8; }
+
  private:
 
  uint32 GPR[32 + 1];	// GPR[32] Used as dummy in load delay simulation(indexing past the end of real GPR)

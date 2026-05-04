@@ -128,38 +128,35 @@ static void MupenStateCallback(void *context, m64p_core_param paramType, int new
 
 #pragma mark - RetroAchievements
 
-// rcheevos N64 address space (Vendor/rcheevos/src/rcheevos/consoleinfo.c lines 728-733):
-//   0x000000-0x1FFFFF  RDRAM 1 (2 MB, always present)
-//   0x200000-0x3FFFFF  RDRAM 2 (2 MB, expansion pak only)
-//   0x400000-0x7FFFFF  padding for expansion pak
-//
-// Mupen stores RDRAM as host-native 32-bit words in g_dev.rdram.dram. RA hashes
-// and conditions assume big-endian byte ordering, so each byte read needs the
-// standard N64 byte-swap (addr ^ 3) on a little-endian host.
+// Mupen stores RDRAM as host-native (little-endian) 32-bit words in g_dev.rdram.dram.
+// N64 achievement conditions are authored against the raw LE host byte layout (the same
+// layout RetroArch/mupen64plus-next exposes via retro_get_memory_data). Return bytes
+// verbatim — no byte-swap. Multi-byte conditions in the achievement set use _BE size
+// prefixes to handle endianness at the condition level.
 static uint32_t mupen_rc_read_memory(uint32_t address, uint8_t *buffer,
                                      uint32_t num_bytes, rc_client_t *client)
 {
     uint8_t *ram = (uint8_t *)g_dev.rdram.dram;
     size_t   sz  = g_dev.rdram.dram_size;
     if (!ram || sz == 0) { return 0; }
-    for (uint32_t i = 0; i < num_bytes; i++) {
-        uint32_t addr = address + i;
-        if (addr >= sz) { return i; }
-        buffer[i] = ram[addr ^ 3];
-    }
-    return num_bytes;
+    uint32_t end = address + num_bytes;
+    if (end > sz) { end = (uint32_t)sz; }
+    uint32_t readable = end - address;
+    memcpy(buffer, ram + address, readable);
+    return readable;
 }
 
 static void mupen_rc_log(const char *message, const rc_client_t *client)
 {
-    os_log(OS_LOG_DEFAULT, "[rcheevos] %{public}s", message);
+    os_log(OS_LOG_DEFAULT, "[rcheevos/n64] %{public}s", message);
 }
 
 static void mupen_rc_load_game_callback(int result, const char *error_message,
                                          rc_client_t *client, void *userdata)
 {
-    if (result != RC_OK)
+    if (result != RC_OK) {
         NSLog(@"[RA-Mupen64Plus] game load failed — result=%d error=%s", result, error_message ?: "(none)");
+    }
 }
 
 static void mupen_rc_login_callback(int result, const char *error_message,
@@ -425,6 +422,11 @@ static void MupenSetAudioSpeed(int percent)
         rc_client_set_userdata(_rcClient, (__bridge void *)self);
         rc_client_set_event_handler(_rcClient, mupen_rc_event_handler);
         rc_client_set_hardcore_enabled(_rcClient, 0);
+        // Defer memory validation to do_frame (videoInterrupt) so RDRAM is live before rcheevos
+        // validates achievement addresses. Without this, activation runs on the HTTP callback thread
+        // before M64CMD_EXECUTE sets up g_dev.rdram.dram, returning 0 for every address and
+        // deactivating all achievements before the game even starts.
+        rc_client_set_allow_background_memory_reads(_rcClient, 0);
         rc_client_enable_logging(_rcClient, RC_CLIENT_LOG_LEVEL_INFO, mupen_rc_log);
 
         __weak MupenGameCore *weakSelf = self;
@@ -535,8 +537,6 @@ static void MupenSetAudioSpeed(int percent)
 
 - (void)videoInterrupt
 {
-    // Signal "frame ready" first so the renderer presents on time.
-    // rcheevos work runs in the leftover budget before the next VI.
     [self.renderDelegate didRenderFrameOnAlternateThread];
 
     if (_rcClient) {

@@ -541,7 +541,7 @@ If not, hold down buttons ①+②.</string>
 	<key>Select Cheat</key>
 	<string>Cheats</string>
 	<key>Select Core</key>
-	<string>Cores</string>
+	<string>Select Core</string>
 	<key>Select Disc</key>
 	<string>Discs</string>
 	<key>Select Display Mode</key>

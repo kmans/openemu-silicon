@@ -173,10 +173,9 @@
     id="org.openemu.CrabEmu"
     name="CrabEmu"
     appcastURL="https://raw.githubusercontent.com/nickybmon/OpenEmu-Silicon/main/Appcasts/crabemu.xml">
-    <description>Sega Master System and Game Gear emulator</description>
+    <description>ColecoVision emulator</description>
     <systems>
-      <system id="openemu.system.sms">Sega Master System</system>
-      <system id="openemu.system.gg">Game Gear</system>
+      <system id="openemu.system.colecovision">ColecoVision</system>
     </systems>
   </core>
 
@@ -313,9 +312,10 @@
     id="org.openemu.blueMSX"
     name="blueMSX"
     appcastURL="https://raw.githubusercontent.com/nickybmon/OpenEmu-Silicon/main/Appcasts/bluemsx.xml">
-    <description>MSX / MSX2 emulator</description>
+    <description>MSX / MSX2 and ColecoVision emulator</description>
     <systems>
       <system id="openemu.system.msx">MSX</system>
+      <system id="openemu.system.colecovision">ColecoVision</system>
     </systems>
   </core>
 
