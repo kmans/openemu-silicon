@@ -175,9 +175,12 @@ final class PrefCoresController: NSViewController {
 
         var map: [String: (name: String, cores: [CoreDownload])] = [:]
         for core in CoreUpdater.shared.coreList {
-            for (index, sysID) in core.systemIdentifiers.enumerated() {
-                let raw     = index < core.systemNames.count ? core.systemNames[index] : sysID
-                let sysName = displayName(for: sysID, fallback: raw)
+            for sysID in core.systemIdentifiers {
+                // Look up the display name fresh from OESystemPlugin at rebuild time.
+                // core.systemNames is populated at CoreUpdater init before all system plugins
+                // load, so index-matched names are unreliable for multi-system cores.
+                let liveName = OESystemPlugin.systemPlugin(forIdentifier: sysID)?.systemName ?? sysID
+                let sysName  = displayName(for: sysID, fallback: liveName)
                 if map[sysID] == nil { map[sysID] = (name: sysName, cores: []) }
                 if !map[sysID]!.cores.contains(where: { $0.bundleIdentifier == core.bundleIdentifier }) {
                     map[sysID]!.cores.append(core)
