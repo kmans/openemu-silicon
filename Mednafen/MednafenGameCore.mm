@@ -244,7 +244,7 @@ static void mednafen_rc_event_handler(const rc_client_event_t *event, rc_client_
     const rc_client_achievement_t *ach = event->achievement;
     if (!ach) { return; }
 
-    NSLog(@"[RA-Mednafen] achievement triggered: id=%u title=%s", ach->id, ach->title ?: "");
+    os_log(OS_LOG_DEFAULT, "[RA-Mednafen] achievement triggered: id=%u title=%{public}s", ach->id, ach->title ?: "");
 
     NSDictionary *info = @{
         OEAchievementIDKey:          @(ach->id),
@@ -3631,7 +3631,7 @@ static void mednafen_rc_event_handler(const rc_client_event_t *event, rc_client_
             // thread before Mednafen's core is fully started, returning 0 for every address and
             // silently deactivating all achievements before the game begins.
             rc_client_set_allow_background_memory_reads(_rcClient, 0);
-            rc_client_enable_logging(_rcClient, RC_CLIENT_LOG_LEVEL_INFO, mednafen_rc_log);
+            rc_client_enable_logging(_rcClient, RC_CLIENT_LOG_LEVEL_WARN, mednafen_rc_log);
 
             __weak MednafenGameCore *weakSelf = self;
             _raTokenObserver = [[NSNotificationCenter defaultCenter]
