@@ -35,6 +35,7 @@
 
 #import "MednafenGameCore.h"
 #import <OpenEmuBase/OERingBuffer.h>
+#import <OpenEmuBase/OEGameCoreDisplayModes.h>
 #import <OpenGL/gl.h>
 #import "OELynxSystemResponderClient.h"
 #import "OENGPSystemResponderClient.h"
@@ -110,8 +111,10 @@ namespace MDFN_IEN_VB
     id _raTokenObserver;
     NSString *_romPath;
     int _rcConsole;
+    BOOL _isSystemPCECD;
 }
 - (NSString *)mednafenCoreModule;
+- (BOOL)isSystemPCECD;
 - (void)_beginLoadGame;
 
 - (void)initializeMednafen;
@@ -150,19 +153,26 @@ static uint32_t mednafen_rc_read_memory(uint32_t address, uint8_t *buffer,
     if ([mod isEqualToString:@"psx"]) {
         for (uint32_t i = 0; i < num_bytes; i++) {
             uint32_t a = address + i;
-            if (a >= 0x200000) { return i; }
-            buffer[i] = MDFN_IEN_PSX::MainRAM.data8[a];
+            if (a < 0x200000) {
+                buffer[i] = MDFN_IEN_PSX::MainRAM.data8[a];
+            } else if (a < 0x200400) {
+                // Scratchpad: rcheevos maps 0x200000–0x2003FF → CPU 0x1F800000 (1 KB)
+                if (!MDFN_IEN_PSX::CPU) { return i; }
+                buffer[i] = MDFN_IEN_PSX::CPU->GetScratchRAMData()[a - 0x200000];
+            } else {
+                return i;
+            }
         }
         return num_bytes;
     }
-    if ([mod isEqualToString:@"pce"]) {
+    if ([mod isEqualToString:@"pce"] && ![c isSystemPCECD]) {
         for (uint32_t i = 0; i < num_bytes; i++) {
             if (address + i >= 0x2000) { return i; }
             buffer[i] = MDFN_IEN_PCE::PCE_PeekMainRAM(address + i);
         }
         return num_bytes;
     }
-    if ([mod isEqualToString:@"pcecd"]) {
+    if ([mod isEqualToString:@"pce"] && [c isSystemPCECD]) {
         uint8_t *cdram     = MDFNPCE_GetCDRAMPointer();      // 64 KB,  may be NULL
         uint8_t *syscard   = MDFNPCE_GetSysCardRAMPointer(); // 192 KB, may be NULL
         uint8_t *saveram   = MDFNPCE_GetSaveRAMPointer();    // 2 KB,   always present
@@ -234,6 +244,8 @@ static void mednafen_rc_event_handler(const rc_client_event_t *event, rc_client_
     const rc_client_achievement_t *ach = event->achievement;
     if (!ach) { return; }
 
+    os_log(OS_LOG_DEFAULT, "[RA-Mednafen] achievement triggered: id=%u title=%{public}s", ach->id, ach->title ?: "");
+
     NSDictionary *info = @{
         OEAchievementIDKey:          @(ach->id),
         OEAchievementTitleKey:       @(ach->title       ?: ""),
@@ -250,6 +262,7 @@ static void mednafen_rc_event_handler(const rc_client_event_t *event, rc_client_
 @implementation MednafenGameCore
 
 - (NSString *)mednafenCoreModule { return _mednafenCoreModule; }
+- (BOOL)isSystemPCECD { return _isSystemPCECD; }
 
 - (void)_beginLoadGame
 {
@@ -3320,6 +3333,7 @@ static void mednafen_rc_event_handler(const rc_client_event_t *event, rc_client_
       };
 
     _mednafenCoreModule = mednafenCoreModules[self.systemIdentifier];
+    _isSystemPCECD = [self.systemIdentifier isEqualToString:@"openemu.system.pcecd"];
 
     // Create battery save dir
     NSURL *batterySavesDirectory = [NSURL fileURLWithPath:self.batterySavesDirectoryPath];
@@ -3599,11 +3613,11 @@ static void mednafen_rc_event_handler(const rc_client_event_t *event, rc_client_
     // Saturn / VB / WSwan / PCFX are intentionally skipped here so Phase 3 (#261)
     // can drop them in cleanly.
     _rcConsole = -1;
-    if ([_mednafenCoreModule isEqualToString:@"psx"])         _rcConsole = RC_CONSOLE_PLAYSTATION;
-    else if ([_mednafenCoreModule isEqualToString:@"pce"])    _rcConsole = RC_CONSOLE_PC_ENGINE;
-    else if ([_mednafenCoreModule isEqualToString:@"pcecd"])  _rcConsole = RC_CONSOLE_PC_ENGINE_CD;
-    else if ([_mednafenCoreModule isEqualToString:@"lynx"])   _rcConsole = RC_CONSOLE_ATARI_LYNX;
-    else if ([_mednafenCoreModule isEqualToString:@"ngp"])    _rcConsole = RC_CONSOLE_NEOGEO_POCKET;
+    if ([_mednafenCoreModule isEqualToString:@"psx"])  _rcConsole = RC_CONSOLE_PLAYSTATION;
+    else if (_isSystemPCECD)                           _rcConsole = RC_CONSOLE_PC_ENGINE_CD;
+    else if ([_mednafenCoreModule isEqualToString:@"pce"])   _rcConsole = RC_CONSOLE_PC_ENGINE;
+    else if ([_mednafenCoreModule isEqualToString:@"lynx"])  _rcConsole = RC_CONSOLE_ATARI_LYNX;
+    else if ([_mednafenCoreModule isEqualToString:@"ngp"])   _rcConsole = RC_CONSOLE_NEOGEO_POCKET;
 
     if (_rcConsole > 0) {
         _romPath = path;
@@ -3612,7 +3626,12 @@ static void mednafen_rc_event_handler(const rc_client_event_t *event, rc_client_
             rc_client_set_userdata(_rcClient, (__bridge void *)self);
             rc_client_set_event_handler(_rcClient, mednafen_rc_event_handler);
             rc_client_set_hardcore_enabled(_rcClient, 0);
-            rc_client_enable_logging(_rcClient, RC_CLIENT_LOG_LEVEL_INFO, mednafen_rc_log);
+            // Defer address validation to executeFrame so emulated RAM is live before rcheevos
+            // validates achievement memrefs. Without this, activation runs on the HTTP callback
+            // thread before Mednafen's core is fully started, returning 0 for every address and
+            // silently deactivating all achievements before the game begins.
+            rc_client_set_allow_background_memory_reads(_rcClient, 0);
+            rc_client_enable_logging(_rcClient, RC_CLIENT_LOG_LEVEL_WARN, mednafen_rc_log);
 
             __weak MednafenGameCore *weakSelf = self;
             _raTokenObserver = [[NSNotificationCenter defaultCenter]
