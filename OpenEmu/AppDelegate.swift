@@ -520,7 +520,12 @@ class AppDelegate: NSObject, UNUserNotificationCenterDelegate {
                 }
 
             default:
-                break
+                // Permission already granted. Call requestAccess() anyway — it is idempotent
+                // (returns true, no dialog) but ensures HID event delivery is active for this
+                // binary. IOHIDCheckAccess returning .granted does not activate delivery; that
+                // requires IOHIDRequestAccess to be called. Same reason the DEBUG path always
+                // calls it unconditionally.
+                _ = dm.requestAccess()
             }
             #endif
             // Re-enumerate keyboards in case permission was granted after init.
