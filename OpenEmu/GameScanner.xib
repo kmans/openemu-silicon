@@ -97,6 +97,22 @@
                         <action selector="resolveIssues:" target="-2" id="142"/>
                     </connections>
                 </button>
+                <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="CNc-el-cBT">
+                    <rect key="frame" x="345" y="14" width="75" height="32"/>
+                    <buttonCell key="cell" type="push" title="Cancel" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="CNc-el-cBC">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="system"/>
+                        <string key="keyEquivalent" base64-UTF8="YES">
+                            Gw==
+                        </string>
+                    </buttonCell>
+                    <userDefinedRuntimeAttributes>
+                        <userDefinedRuntimeAttribute type="boolean" keyPath="localizeTitle" value="YES"/>
+                    </userDefinedRuntimeAttributes>
+                    <connections>
+                        <action selector="cancelOperation:" target="-2" id="CNc-el-cBA"/>
+                    </connections>
+                </button>
                 <popUpButton verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="130">
                     <rect key="frame" x="97" y="17" width="174" height="25"/>
                     <constraints>
@@ -135,6 +151,8 @@
                 <constraint firstItem="64" firstAttribute="top" secondItem="nfP-Bk-Jmp" secondAttribute="bottom" constant="8" id="rXw-AQ-4LR"/>
                 <constraint firstItem="130" firstAttribute="firstBaseline" secondItem="juM-7u-mF2" secondAttribute="firstBaseline" id="vyZ-74-yDt"/>
                 <constraint firstItem="138" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="130" secondAttribute="trailing" constant="8" symbolic="YES" id="wXa-tM-iTy"/>
+                <constraint firstItem="138" firstAttribute="leading" secondItem="CNc-el-cBT" secondAttribute="trailing" constant="8" id="CNc-el-cBL"/>
+                <constraint firstItem="CNc-el-cBT" firstAttribute="baseline" secondItem="138" secondAttribute="baseline" id="CNc-el-cBB"/>
             </constraints>
             <point key="canvasLocation" x="373.5" y="165"/>
         </customView>

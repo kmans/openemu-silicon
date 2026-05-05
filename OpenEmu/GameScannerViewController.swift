@@ -350,7 +350,11 @@ final class GameScannerViewController: NSViewController {
         
         dismiss(self)
     }
-    
+
+    @IBAction override func cancelOperation(_ sender: Any?) {
+        dismiss(self)
+    }
+
     @IBAction func buttonAction(_ sender: Any?) {
         
         if NSEvent.modifierFlags.contains(.option) || importer.status == .stopped && !itemsRequiringAttention.isEmpty {
