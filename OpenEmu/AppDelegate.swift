@@ -935,8 +935,10 @@ extension AppDelegate: NSMenuDelegate {
         OECoreMigration.runIfNeeded()
         loadPlugins(with: database)
 
-        CoreUpdater.shared.checkForUpdatesAndInstall()
-        
+        CoreUpdater.shared.checkForNewCores { _ in
+            CoreUpdater.shared.checkForUpdatesAndInstall()
+        }
+
         if !restoreWindow {
             _ = mainWindowController.window
         }
@@ -973,8 +975,6 @@ extension AppDelegate: NSMenuDelegate {
         SentryService.configureIfNeeded()
         removeIncompatibleSaveStates(from: database)
 
-        CoreUpdater.shared.checkForNewCores()   // TODO: check error from completion handler
-        
         let userDefaultsController = NSUserDefaultsController.shared
         bind(.logHIDEvents, to: userDefaultsController, withKeyPath: "values.logsHIDEvents", options: nil)
         bind(.logKeyboardEvents, to: userDefaultsController, withKeyPath: "values.logsHIDEventsNoKeyboard", options: nil)

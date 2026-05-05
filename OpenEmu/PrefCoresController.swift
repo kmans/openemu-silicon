@@ -194,27 +194,42 @@ final class PrefCoresController: NSViewController {
                 systemName: value.name,
                 cores: value.cores.sorted { $0.name < $1.name }
             )
-            entry.retroArchCores = allRetroArch.filter { $0.systemIDs.contains(sysID) && !$0.isPluginInstalled }
+            entry.retroArchCores = deduplicatedRetroArchCores(allRetroArch.filter { $0.systemIDs.contains(sysID) })
             return entry
         }
         .sorted { $0.systemName < $1.systemName }
 
-        // Add rows for systems that only exist via uninstalled RA cores.
+        // Add rows for systems that only exist via RA cores (installed or not).
         // Group all RA cores for the same sysID into one row.
         var extraMap: [String: [RetroArchCore]] = [:]
-        for raCore in allRetroArch where !raCore.isPluginInstalled {
+        for raCore in allRetroArch {
             for sysID in raCore.systemIDs where !entries.contains(where: { $0.systemIdentifier == sysID }) {
                 extraMap[sysID, default: []].append(raCore)
             }
         }
         for (sysID, raCores) in extraMap {
             var entry = SystemEntry(systemIdentifier: sysID, systemName: displayName(for: sysID, fallback: sysID), cores: [])
-            entry.retroArchCores = raCores
+            entry.retroArchCores = deduplicatedRetroArchCores(raCores)
             entries.append(entry)
         }
 
         entries.sort { $0.systemName < $1.systemName }
         tableView.reloadData()
+    }
+
+    private func deduplicatedRetroArchCores(_ cores: [RetroArchCore]) -> [RetroArchCore] {
+        var seen: [String: RetroArchCore] = [:]
+        for core in cores {
+            if let existing = seen[core.displayName] {
+                // Prefer the installed variant over an uninstalled duplicate
+                if core.isPluginInstalled && !existing.isPluginInstalled {
+                    seen[core.displayName] = core
+                }
+            } else {
+                seen[core.displayName] = core
+            }
+        }
+        return seen.values.sorted { $0.displayName < $1.displayName }
     }
 
     private func displayName(for sysID: String, fallback: String) -> String {
@@ -240,9 +255,13 @@ final class PrefCoresController: NSViewController {
             entries[row].activeCoreID = bundleID
             tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet([1, 2, 3]))
 
-        case .install, .update, .check:
+        case .install, .update:
             guard let core = entries[row].activeCore else { return }
             CoreUpdater.shared.installCoreInBackgroundUserInitiated(core)
+
+        case .check:
+            CoreUpdater.shared.checkForNewCores()
+            CoreUpdater.shared.checkForUpdates()
 
         case .revert:
             guard let core = entries[row].activeCore else { return }

@@ -580,10 +580,11 @@ static bool libretro_environment_cb(unsigned cmd, void *data) {
                     }
                 }
                 
-                // No override matched — set value to NULL and return true.
-                // Spec: returning true means the frontend supports variables;
-                // NULL value tells the core to use its own built-in default.
-                var->value = NULL;
+                // No override matched. Use an empty string rather than NULL so
+                // cores that skip the null-check before calling strcmp() don't
+                // crash. The empty string won't match any valid option value,
+                // so the core naturally falls through to its built-in default.
+                var->value = "";
 #if DEBUG
                 NSLog(@"[OELibretro] Core queried variable: %s (System: %s) — no override", var->key, [systemID UTF8String]);
 #endif

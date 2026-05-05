@@ -47,6 +47,7 @@ final class CoreUpdater: NSObject {
     private var autoInstall = false
     private var lastCoreListURLTask: URLSessionDataTask?
     private var pendingUserInitiatedDownloads: Set<CoreDownload> = []
+    private var oeKnownCoreIDs: Set<String> = []
     
     // Backup directory
     private var coresDirectory: URL {
@@ -83,6 +84,8 @@ final class CoreUpdater: NSObject {
         }
         
         for plugin in OECorePlugin.allPlugins {
+            let coreID = plugin.bundleIdentifier.lowercased()
+            guard !oeKnownCoreIDs.contains(coreID) else { continue }
             if let appcastURLString = plugin.infoDictionary["SUFeedURL"] as? String,
                let feedURL = URL(string: appcastURLString) {
                 checkForUpdateInformation(url: feedURL, plugin: plugin) { item in
@@ -193,15 +196,38 @@ final class CoreUpdater: NSObject {
             if let coreList = try? XMLDocument(data: data, options: []),
                let coreNodes = try? coreList.nodes(forXPath: "/cores/core") as? [XMLElement] {
                 DispatchQueue.main.async {
+                    self.oeKnownCoreIDs = Set(coreNodes.compactMap {
+                        $0.attribute(forName: "id")?.stringValue?.lowercased()
+                    })
+
                     for coreNode in coreNodes {
                         guard
                             let coreID = coreNode.attribute(forName: "id")?.stringValue?.lowercased(),
-                            self.coresDict[coreID] == nil,
                             let coreName = coreNode.attribute(forName: "name")?.stringValue,
                             let systemNodes = try? coreNode.nodes(forXPath: "./systems/system") as? [XMLElement],
                             let appcastURLString = coreNode.attribute(forName: "appcastURL")?.stringValue,
                             let appcastURL = URL(string: appcastURLString)
                         else { continue }
+
+                        // If already installed, refresh its appcast from oecores.xml so
+                        // "Check for Update" uses our fork's appcast, not upstream's.
+                        if let existing = self.coresDict[coreID] {
+                            let appcast = CoreAppcast(url: appcastURL)
+                            appcast.fetch {
+                                DispatchQueue.main.async {
+                                    if let item = appcast.items.first(where: { $0.isSupported }),
+                                       SUStandardVersionComparator.default.compareVersion(item.version, toVersion: existing.version) == .orderedDescending {
+                                        existing.appcastItem = item
+                                        existing.hasUpdate = true
+                                        if self.autoInstall {
+                                            existing.start()
+                                        }
+                                    }
+                                    self.updateCoreList()
+                                }
+                            }
+                            continue
+                        }
                         
                         let download = CoreDownload()
                         download.name = coreName
