@@ -455,6 +455,10 @@ extension MainWindowController: NSWindowDelegate {
         }
     }
     
+    func windowDidResize(_ notification: Notification) {
+        window?.contentView?.needsDisplay = true
+    }
+
     func windowDidExitFullScreen(_ notification: Notification) {
         if shouldUndockGameWindowOnFullScreenExit {
             shouldUndockGameWindowOnFullScreenExit = false
