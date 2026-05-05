@@ -55,4 +55,12 @@ Save files synced to Google Drive are stored in a top-level **OpenEmu Saves** fo
 
 ## Core Updates
 
-*(Core release notes will be added here before publishing.)*
+These core updates ship automatically via the in-app updater (Preferences → Cores). You do not need to reinstall OpenEmu to receive them.
+
+- **Mednafen 1.26.3** — RetroAchievements are now supported for PlayStation, PC Engine / TurboGrafx-16, Atari Lynx, and Neo Geo Pocket Color. Multi-disc PSX games no longer require a manually created `.m3u` file — Mednafen generates the playlist automatically. PSX save RAM (memory card scratchpad) and PC Engine CD console detection are also fixed.
+
+- **Mupen64Plus 2.5.12** — RetroAchievements are now supported for Nintendo 64. Memory address reads used by the achievement system are corrected, and address validation is deferred until emulated RAM is live so games don't stall on load.
+
+- **Flycast 2.4.1** — Fixes a regression that caused Dreamcast games to run at roughly half speed (27fps). The JIT compiler was inadvertently disabled in the previous release, halving performance; it is re-enabled here alongside the correct dynamic frame timeout. Also fixes a black screen that could appear when loading a Dreamcast game for the second time in a session.
+
+- **FCEU 2.6.8** — Fixes a black screen that affected NES games when running from a notarised or Release build. Pixels were not being written to the framebuffer on the code path used by distribution builds, making every NES game appear blank. This does not affect Debug builds, which is why it was not caught sooner.
