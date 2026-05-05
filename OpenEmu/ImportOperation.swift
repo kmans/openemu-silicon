@@ -733,14 +733,15 @@ final class ImportOperation: Operation, NSCopying, @unchecked Sendable {
             
             let isReachable = (try? romURL?.checkResourceIsReachable()) ?? false
             if !isReachable {
-                DLog("rom file not available")
-                error = NSError(domain: OEImportErrorDomainFatal, code: OEImportErrorCode.alreadyInDatabaseFileUnreachable.rawValue)
-            }
-            else {
+                DLog("rom file not available — removing stale entry and re-importing")
+                context.delete(rom)
+                try? context.save()
+                self.rom = nil
+                // fall through: let import proceed normally
+            } else {
                 error = NSError(domain: OEImportErrorDomainFatal, code: OEImportErrorCode.alreadyInDatabase.rawValue)
+                exit(with: .errorFatal, error: error)
             }
-            
-            exit(with: .errorFatal, error: error)
         }
     }
     
