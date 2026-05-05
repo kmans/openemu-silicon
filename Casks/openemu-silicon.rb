@@ -1,6 +1,6 @@
 cask "openemu-silicon" do
   version "1.0.8"
-  sha256 "cc23444f1a35ebe385ff06e13d6d2a1a64b64135732738bb3530907b6b90ff61"
+  sha256 "f536ca92244743f9fdb924d66184131f067faa09b2b4b3cd60c81fad6c60a5d8"
 
   url "https://github.com/nickybmon/OpenEmu-Silicon/releases/download/v#{version}/OpenEmu-Silicon.dmg"
   name "OpenEmu Silicon"

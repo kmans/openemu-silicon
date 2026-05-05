@@ -5,7 +5,75 @@
     <link>https://github.com/nickybmon/OpenEmu-Silicon/releases</link>
     <description>Most recent changes with links to updates.</description>
     <language>en</language>
-            <item>
+                <item>
+      <title>OpenEmu-Silicon 1.0.8</title>
+      <description>
+        <![CDATA[
+        <h2>OpenEmu-Silicon 1.0.8</h2>
+        <h3>What's New in 1.0.8</h3>
+        <p>### Libretro Bridge — PSP, Arcade, and More (Early Access) ⚡</p>
+        <p>OpenEmu Silicon now includes a **Libretro Bridge** — a translation layer built by Nick Blackmon and [pystIC](https://github.com/pystIC) that lets you run RetroArch/libretro cores directly inside OpenEmu, without any per-core rewriting or native port work.</p>
+        <p>This opens up systems that were previously impossible to support in this fork:</p>
+        <ul>
+        <li><strong>PSP</strong> via PPSSPP-libretro</li>
+        <li><strong>Arcade</strong> (MAME, FinalBurn Neo) via their libretro cores</li>
+        <li><strong>Dreamcast</strong> via Flycast-libretro</li>
+        <li>And many others available through the libretro ecosystem</li>
+        </ul>
+        <p>**How it works:** You download cores through RetroArch as you normally would (or grab them from the libretro buildbot directly). OpenEmu's bridge loads those `.dylib` files and translates between the libretro API and OpenEmu's native core interface — handling input, video, audio, save states, and core options automatically.</p>
+        <p>This is an **early, experimental release.** It has been tested on a range of systems and works, but some cores will behave better than others, and rough edges remain. Hardware-rendered cores (those requiring OpenGL or Vulkan) are not yet supported — software-rendered cores are the sweet spot right now.</p>
+        <p>→ **[Full setup guide and supported cores list](https://github.com/nickybmon/OpenEmu-Silicon/wiki/Using-RetroArch-Cores)**</p>
+        <p>---</p>
+        <p>### RetroAchievements — Phase 2 🏆</p>
+        <p>Two more systems now earn achievements automatically while you play:</p>
+        <p>**Nintendo 64 (Mupen64Plus)** — N64 achievements are fully live. Log in once in Preferences → Achievements and your existing token carries over.</p>
+        <p>**PlayStation, PC Engine, Lynx, Neo Geo Pocket (Mednafen)** — PSX (including multi-disc games), PC Engine / TurboGrafx-16, Atari Lynx, and Neo Geo Pocket Color are all supported.</p>
+        <p>The full list of RA-supported systems now includes: GBA, GB/GBC, SNES, NES, Genesis / Mega Drive / CD / SG-1000, Master System / Game Gear, N64, PSX, PC Engine, Lynx, and NGP.</p>
+        <p>---</p>
+        <p>### Google Drive saves now visible in Finder</p>
+        <p>Save files synced to Google Drive are stored in a top-level **OpenEmu Saves** folder in your Drive, instead of a hidden app-data location. This makes it easy to see, download, or back up your saves directly from drive.google.com or the macOS Drive app.</p>
+        <p>---</p>
+        <h3>Bug Fixes</h3>
+        <ul>
+        <li><strong>ROM files can now be re-imported after deletion.</strong> If you deleted a game from your library and tried to add the same ROM again, OpenEmu silently skipped it because the stale database entry was still present. The entry is now cleaned up on delete so re-import works.</li>
+        <li><strong>Game Scanner now has a Cancel button.</strong> The "Resolve Issues" sheet that appears when imports need attention previously had no way to dismiss it without resolving every item.</li>
+        <li><strong>Window resizing no longer leaves ghost content layers.</strong> Maximizing or resizing the main window could leave semi-transparent artifacts from the previous layout overlaid on the new one. The content view is now correctly redrawn on resize.</li>
+        <li><strong>Dreamcast games no longer play at half speed (27fps).</strong> The Flycast JIT compiler was disabled, halving performance. JIT is re-enabled and the dynamic frame timeout is restored.</li>
+        <li><strong>Dreamcast games no longer show a black screen on second launch.</strong> A Flycast option override applied during `loadGame` was being reset before it took effect. The override now sticks.</li>
+        <li><strong>PSX multi-disc games no longer require a manual .m3u file.</strong> Mednafen now auto-generates the playlist for multi-disc sets so they load without any setup.</li>
+        <li><strong>Input Monitoring permission is now correctly detected at launch.</strong> If Input Monitoring was already granted before the app launched, OpenEmu would show the permission prompt again and controllers would not respond. This is fixed.</li>
+        <li><strong>ScreenScraper now recognises 16 additional systems.</strong> Covers, screenshots, and metadata were not fetching for systems whose IDs were missing from the mapping table.</li>
+        <li><strong>Keychain reads no longer block the main thread.</strong> Loading the RetroAchievements token at launch could cause a brief freeze, especially on first run. Tokens are now cached in memory after the first read.</li>
+        <li><strong>Cheats are now saved and re-applied on game start.</strong> User-added cheat codes were lost between sessions. Enabled cheats are now persisted to disk and automatically re-applied when the game loads.</li>
+        <li><strong>Preferences no longer shows duplicate ColecoVision rows.</strong> The Cores tab was resolving system names incorrectly, producing ghost rows for ColecoVision and a few other systems.</li>
+        <li><strong>FCEU games now render correctly when running from a Release build.</strong> Pixels were not being written to the framebuffer on the execute frame path used by Release and notarised builds, causing a black screen.</li>
+        <li><strong>Google Drive OAuth now completes correctly.</strong> The redirect URI handler was being called on the wrong thread, causing the sign-in flow to silently stall after the browser handoff.</li>
+        <li><strong>RetroArch cores are now visible in the core picker and stay visible after selection.</strong> On SNES, Arcade, and C64, selecting a RetroArch (bridge) core caused it to vanish from the picker entirely, making it impossible to reselect. The picker now correctly lists all bridge cores at all times.</li>
+        <li><strong>"Check for Update" in the core picker now works.</strong> Tapping it previously produced no visible effect. It now fetches the correct appcast for each installed core and shows an update badge when one is available.</li>
+        <li><strong>Core updates now install automatically on launch.</strong> Installed cores were never auto-updating because the update pipeline was fetching stale upstream appcasts (pointing at x86_64-only binaries) instead of this fork's. The pipeline now uses the correct per-fork appcasts for all cores, and updates install silently in the background without any user action.</li>
+        <li><strong>Snes9x (RetroArch) no longer crashes on load.</strong> A null pointer was being passed to the core options interface; it now receives an empty string, which the core handles correctly.</li>
+        </ul>
+        <h3>Core Updates</h3>
+        <p>These core updates ship automatically via the in-app updater (Preferences → Cores). You do not need to reinstall OpenEmu to receive them.</p>
+        <ul>
+        <li><strong>Mednafen 1.26.3</strong> — RetroAchievements are now supported for PlayStation, PC Engine / TurboGrafx-16, Atari Lynx, and Neo Geo Pocket Color. Multi-disc PSX games no longer require a manually created `.m3u` file — Mednafen generates the playlist automatically. PSX save RAM (memory card scratchpad) and PC Engine CD console detection are also fixed.</li>
+        <li><strong>Mupen64Plus 2.5.12</strong> — RetroAchievements are now supported for Nintendo 64. Memory address reads used by the achievement system are corrected, and address validation is deferred until emulated RAM is live so games don't stall on load.</li>
+        <li><strong>Flycast 2.4.1</strong> — Fixes a regression that caused Dreamcast games to run at roughly half speed (27fps). The JIT compiler was inadvertently disabled in the previous release, halving performance; it is re-enabled here alongside the correct dynamic frame timeout. Also fixes a black screen that could appear when loading a Dreamcast game for the second time in a session.</li>
+        <li><strong>FCEU 2.6.8</strong> — Fixes a black screen that affected NES games when running from a notarised or Release build. Pixels were not being written to the framebuffer on the code path used by distribution builds, making every NES game appear blank. This does not affect Debug builds, which is why it was not caught sooner.</li>
+        </ul>
+        ]]>
+      </description>
+      <pubDate>Tue, 05 May 2026 03:10:10 +0000</pubDate>
+      <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+      <enclosure
+        url="https://github.com/nickybmon/OpenEmu-Silicon/releases/download/v1.0.8/OpenEmu-Silicon.dmg"
+        sparkle:version="10"
+        sparkle:shortVersionString="1.0.8"
+        sparkle:edSignature="edBhvGn0f/lgzjRpoEIJBGc7gBQlRBUnZUpnvzK/gIgFtV3O9rTxnPd7/W0/SLzi8whDMgDfAhFf6SbXoSc9Dw=="
+        length="45836144"
+        type="application/octet-stream"/>
+    </item>
+<item>
       <title>OpenEmu-Silicon 1.0.8</title>
       <description>
         <![CDATA[
