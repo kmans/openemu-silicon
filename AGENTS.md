@@ -105,6 +105,12 @@ A clean build is the definition of "passing." Run this before every commit touch
 | WonderSwan | Mednafen |
 | 3DO | 4DO |
 
+### Libretro / RetroArch cores
+
+The native cores in the table above are the supported user-facing cores. In addition, users can install **RetroArch cores** through Preferences → Cores → [system] → RetroArch core. The picker scans `~/Library/Application Support/RetroArch/cores/` and wraps any compatible `.dylib` into a generated `.oecoreplugin` that the **libretro host** (`OELibretroCoreTranslator` in `OpenEmu-SDK/OpenEmuBase/`) loads at runtime. See `docs/libretro-architecture.md` for the full pathway.
+
+Any cross-cutting feature work that would otherwise touch every libretro core (RetroAchievements, save state plumbing, runahead) belongs in the libretro host, not in individual cores. There are no in-repo libretro cores; the host runtime exists solely to load externally-built RetroArch cores. The `*-Bridge/` directories that remain in the tree are testing-only and slated for removal — do not extend them.
+
 ---
 
 ## Branch and PR Rules
