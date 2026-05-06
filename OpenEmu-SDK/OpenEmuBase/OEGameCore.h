@@ -33,6 +33,7 @@
 #import <OpenEmuBase/OESystemResponderClient.h>
 #import <OpenEmuBase/OEGeometry.h>
 #import <OpenEmuBase/OEDiffQueue.h>
+#import <OpenEmuBase/OEGameCoreDisplayModes.h>
 
 @class OEGameCoreController, OEGameCore;
 
