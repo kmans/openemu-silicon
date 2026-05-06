@@ -33,6 +33,12 @@
 #import "OERingBuffer.h"
 #import "OETimingUtils.h"
 #import "OELogging.h"
+
+// Mirrors the flag in OELibretroCoreTranslator.m. Flip both to 1 when
+// diagnosing an audio issue so ring-buffer sizing shows up in the same trace.
+#ifndef OE_LIBRETRO_AUDIO_DEBUG
+#define OE_LIBRETRO_AUDIO_DEBUG 0
+#endif
 #import <os/signpost.h>
 #import <os/lock.h>
 
@@ -705,6 +711,10 @@ static Class GameCoreClass = Nil;
         NSUInteger coreRequestedLen = [self audioBufferSizeForBuffer:index] * 2;
         len = MAX(coreRequestedLen, len);
         
+#if OE_LIBRETRO_AUDIO_DEBUG
+        NSLog(@"[OELibretro/audio] ringBufferAtIndex:%lu creating buffer sampleRate=%.2f channels=%lu len=%lu",
+              (unsigned long)index, sampleRate, (unsigned long)channelCount, (unsigned long)len);
+#endif
         result = [[OERingBuffer alloc] initWithLength:len];
         [result setDiscardPolicy:OERingBufferDiscardPolicyOldest];
         [result setAnticipatesUnderflow:YES];

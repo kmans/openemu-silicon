@@ -37,6 +37,25 @@
 #endif
 #import <stdatomic.h>
 
+// Flip to 1 to dump libretro audio plumbing to the unified log. Off by default —
+// production logs are too chatty otherwise. Filter with:
+//   log show --predicate 'process == "OpenEmuHelperApp"' --last 30s | grep "OELibretro/audio"
+#ifndef OE_LIBRETRO_AUDIO_DEBUG
+#define OE_LIBRETRO_AUDIO_DEBUG 0
+#endif
+
+#if OE_LIBRETRO_AUDIO_DEBUG
+#define OE_AUDIO_LOG(fmt, ...) NSLog(@"[OELibretro/audio] " fmt, ##__VA_ARGS__)
+#else
+#define OE_AUDIO_LOG(fmt, ...) ((void)0)
+#endif
+
+// Not in the trimmed SDK libretro.h — defined upstream as (47 | 0x10000).
+// Some cores skip producing audio if the host doesn't acknowledge this query.
+#ifndef RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE
+#define RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE (47 | 0x10000)
+#endif
+
 
 @interface OELibretroCoreTranslator () <OELibretroInputReceiver>
 @property (nonatomic, strong) NSBundle *coreBundle;
@@ -351,14 +370,33 @@ static bool libretro_environment_cb(unsigned cmd, void *data) {
             if (data && _current) {
                 const struct retro_system_av_info *info = (const struct retro_system_av_info *)data;
                 os_unfair_lock_lock(&_current->_avInfoLock);
+                double oldRate = _current->_avInfo.timing.sample_rate;
                 _current->_avInfo = *info;
                 os_unfair_lock_unlock(&_current->_avInfoLock);
+                double newRate = info->timing.sample_rate;
 #if DEBUG
-                NSLog(@"[OELibretro] AV Info updated: %dx%d @ %.2f fps", info->geometry.base_width, info->geometry.base_height, info->timing.fps);
+                NSLog(@"[OELibretro] AV Info updated: %dx%d @ %.2f fps, sample_rate=%.2f", info->geometry.base_width, info->geometry.base_height, info->timing.fps, newRate);
 #endif
+                OE_AUDIO_LOG(@"SET_SYSTEM_AV_INFO sample_rate %.2f -> %.2f%@",
+                             oldRate, newRate,
+                             (oldRate > 0 && fabs(oldRate - newRate) > 0.5) ? @" (CHANGED)" : @"");
+                // If the core changed the sample rate after the host already
+                // built its audio graph, notify the host so the AudioUnit can
+                // reconfigure. Same pattern as MupenGameCore.m. Without this,
+                // the AU stays at the old rate and audio plays at wrong pitch
+                // or — if the buffer was sized for the old rate and the new
+                // rate is much higher — drops to silence under starvation.
+                if (newRate > 0 && oldRate > 0 && fabs(newRate - oldRate) > 0.5) {
+                    [[_current audioDelegate] audioSampleRateDidChange];
+                }
                 return true;
             }
             break;
+        case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE:
+            // Bit 0 = audio enabled, bit 1 = video enabled, bit 2 = fast-savestates,
+            // bit 3 = hard-disable audio. We always want audio + video.
+            if (data) *(int *)data = (1 << 0) | (1 << 1);
+            return true;
         case RETRO_ENVIRONMENT_SET_HW_RENDER:
             if (data && _current) {
                 struct retro_hw_render_callback *hw = (struct retro_hw_render_callback *)data;
@@ -544,6 +582,20 @@ static bool libretro_environment_cb(unsigned cmd, void *data) {
                     }
                 }
 
+                // SNES (Snes9x) Defaults
+                // The per-channel volume keys (snes9x_sndchan_volume_1..8) are
+                // parsed via atoi(value) — so the empty-string fallback below
+                // converts to 0 and mutes every channel. Return "100" so the
+                // core uses full volume per channel by default. The matching
+                // enable keys (snes9x_sndchan_1..8) use strcmp("disabled", value),
+                // which tolerates "" fine, so we don't override those.
+                if ([systemID isEqualToString:@"openemu.system.snes"]) {
+                    if (strncmp(var->key, "snes9x_sndchan_volume_", 22) == 0) {
+                        var->value = "100";
+                        return true;
+                    }
+                }
+
                 // PPSSPP Defaults
                 if ([systemID containsString:@"psp"]) {
                     if (strcmp(var->key, "ppsspp_backend") == 0) {
@@ -588,6 +640,26 @@ static bool libretro_environment_cb(unsigned cmd, void *data) {
 #if DEBUG
                 NSLog(@"[OELibretro] Core queried variable: %s (System: %s) — no override", var->key, [systemID UTF8String]);
 #endif
+#if OE_LIBRETRO_AUDIO_DEBUG
+                {
+                    static os_unfair_lock keysLock = OS_UNFAIR_LOCK_INIT;
+                    static const char *seenKeys[64] = {0};
+                    static int seenKeyCount = 0;
+                    os_unfair_lock_lock(&keysLock);
+                    BOOL already = NO;
+                    for (int i = 0; i < seenKeyCount; i++) {
+                        if (strcmp(seenKeys[i], var->key) == 0) { already = YES; break; }
+                    }
+                    if (!already && seenKeyCount < 64) {
+                        seenKeys[seenKeyCount++] = strdup(var->key);
+                    }
+                    os_unfair_lock_unlock(&keysLock);
+                    if (!already) {
+                        NSString *k = [NSString stringWithUTF8String:var->key ?: ""];
+                        OE_AUDIO_LOG(@"GET_VARIABLE key=\"%@\" -> \"\" (no override)", k);
+                    }
+                }
+#endif
             }
             return true;
         case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
@@ -618,6 +690,22 @@ static bool libretro_environment_cb(unsigned cmd, void *data) {
             }
             return false;
         default:
+#if OE_LIBRETRO_AUDIO_DEBUG
+            // One log per distinct command id so we see what cores are asking
+            // for that we don't handle. Audio diagnoses often turn on something
+            // like SET_AUDIO_CALLBACK or SET_FRAME_TIME_CALLBACK we're missing.
+            {
+                static os_unfair_lock seenLock = OS_UNFAIR_LOCK_INIT;
+                static unsigned seen[16] = {0};
+                static int seenCount = 0;
+                os_unfair_lock_lock(&seenLock);
+                BOOL already = NO;
+                for (int i = 0; i < seenCount; i++) if (seen[i] == cmd) { already = YES; break; }
+                if (!already && seenCount < 16) seen[seenCount++] = cmd;
+                os_unfair_lock_unlock(&seenLock);
+                if (!already) OE_AUDIO_LOG(@"unhandled env cmd %u (0x%x)", cmd, cmd);
+            }
+#endif
             break;
     }
     return false;
@@ -865,6 +953,10 @@ static void libretro_video_refresh_cb(const void *data, unsigned width, unsigned
 
 static void libretro_audio_sample_cb(int16_t left, int16_t right) {
     if (_current) {
+#if OE_LIBRETRO_AUDIO_DEBUG
+        static dispatch_once_t once;
+        dispatch_once(&once, ^{ OE_AUDIO_LOG(@"first single-sample callback fired"); });
+#endif
         int16_t samples[2] = {left, right};
         [[_current audioBufferAtIndex:0] write:samples maxLength:sizeof(samples)];
     }
@@ -872,6 +964,25 @@ static void libretro_audio_sample_cb(int16_t left, int16_t right) {
 
 static size_t libretro_audio_sample_batch_cb(const int16_t *data, size_t frames) {
     if (_current && data) {
+#if OE_LIBRETRO_AUDIO_DEBUG
+        static dispatch_once_t once;
+        dispatch_once(&once, ^{ OE_AUDIO_LOG(@"first batch callback fired, frames=%zu", frames); });
+        // Periodic amplitude sample so we can tell whether the core is
+        // actually producing sound vs. handing us a silent buffer.
+        static atomic_uint_fast64_t batchCount = 0;
+        uint64_t n = atomic_fetch_add_explicit(&batchCount, 1, memory_order_relaxed);
+        if (n < 5 || (n % 600) == 0) {
+            int16_t mn = INT16_MAX, mx = INT16_MIN;
+            size_t total = frames * 2;
+            size_t step = total > 64 ? total / 64 : 1;
+            for (size_t i = 0; i < total; i += step) {
+                int16_t s = data[i];
+                if (s < mn) mn = s;
+                if (s > mx) mx = s;
+            }
+            OE_AUDIO_LOG(@"batch %llu frames=%zu sample min=%d max=%d", (unsigned long long)n, frames, mn, mx);
+        }
+#endif
         [[_current audioBufferAtIndex:0] write:data maxLength:frames * 2 * sizeof(int16_t)];
         return frames;
     }
@@ -1165,7 +1276,14 @@ static void* bridge_dlsym(void *handle, const char *symbol) {
     // Update geometry and log handshake
     if (_retro_get_system_av_info) {
         _retro_get_system_av_info(&_avInfo);
-        
+
+        // Persistent diagnostic — small, useful when triaging "core X is silent"
+        // reports. Records what the core declared at handshake time so we can
+        // see immediately whether a later SET_SYSTEM_AV_INFO is changing things.
+        NSLog(@"[OELibretro] AV handshake: %ux%u @ %.3f fps, sample_rate=%.2f Hz",
+              _avInfo.geometry.base_width, _avInfo.geometry.base_height,
+              _avInfo.timing.fps, _avInfo.timing.sample_rate);
+
         // Finalize the cached geometry to ensure buffer stability
         if (_cachedMaxWidth == 0) {
             _cachedMaxWidth  = _avInfo.geometry.max_width ?: 640;
@@ -1275,6 +1393,10 @@ static void* bridge_dlsym(void *handle, const char *symbol) {
     os_unfair_lock_lock(&_avInfoLock);
     double rate = _avInfo.timing.sample_rate ?: 44100.0;
     os_unfair_lock_unlock(&_avInfoLock);
+#if OE_LIBRETRO_AUDIO_DEBUG
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ OE_AUDIO_LOG(@"audioSampleRate first read = %.2f", rate); });
+#endif
     return rate;
 }
 
