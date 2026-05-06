@@ -1585,18 +1585,22 @@ static void* bridge_dlsym(void *handle, const char *symbol) {
     // However, the cleanest way to support multiple cores is to map based on the current system.
     
     if (self.isPSP) {
-        // OEPSPButton mapping
+        // OEPSPButton enum (OEPSPSystemResponderClient.h):
+        //   Up=0 Down=1 Left=2 Right=3
+        //   AnalogUp=4 AnalogDown=5 AnalogLeft=6 AnalogRight=7  (handled in didMovePSPJoystickDirection:)
+        //   Triangle=8 Circle=9 Cross=10 Square=11
+        //   L1=12 R1=13 Start=14 Select=15
         switch (button) {
             case 0:  return RETRO_DEVICE_ID_JOYPAD_UP;     // OEPSPButtonUp
             case 1:  return RETRO_DEVICE_ID_JOYPAD_DOWN;   // OEPSPButtonDown
             case 2:  return RETRO_DEVICE_ID_JOYPAD_LEFT;   // OEPSPButtonLeft
             case 3:  return RETRO_DEVICE_ID_JOYPAD_RIGHT;  // OEPSPButtonRight
-            case 4:  return RETRO_DEVICE_ID_JOYPAD_X;      // OEPSPButtonTriangle
-            case 5:  return RETRO_DEVICE_ID_JOYPAD_A;      // OEPSPButtonCircle
-            case 6:  return RETRO_DEVICE_ID_JOYPAD_B;      // OEPSPButtonCross
-            case 7:  return RETRO_DEVICE_ID_JOYPAD_Y;      // OEPSPButtonSquare
-            case 8:  return RETRO_DEVICE_ID_JOYPAD_L;      // OEPSPButtonL1
-            case 11: return RETRO_DEVICE_ID_JOYPAD_R;      // OEPSPButtonR1
+            case 8:  return RETRO_DEVICE_ID_JOYPAD_X;      // OEPSPButtonTriangle
+            case 9:  return RETRO_DEVICE_ID_JOYPAD_A;      // OEPSPButtonCircle
+            case 10: return RETRO_DEVICE_ID_JOYPAD_B;      // OEPSPButtonCross
+            case 11: return RETRO_DEVICE_ID_JOYPAD_Y;      // OEPSPButtonSquare
+            case 12: return RETRO_DEVICE_ID_JOYPAD_L;      // OEPSPButtonL1
+            case 13: return RETRO_DEVICE_ID_JOYPAD_R;      // OEPSPButtonR1
             case 14: return RETRO_DEVICE_ID_JOYPAD_START;  // OEPSPButtonStart
             case 15: return RETRO_DEVICE_ID_JOYPAD_SELECT; // OEPSPButtonSelect
             default: return 0xFF;
@@ -1777,22 +1781,6 @@ static const uint8_t OEArcadeButtonToLibretro[] = {
     [self didReleaseOEButton:button forPlayer:player];
 }
 
-// PSP analog nub. OEPSPButton enum: 4=AnalogUp, 5=AnalogDown, 6=AnalogLeft, 7=AnalogRight.
-// OE sends magnitude in [0,1]; direction is encoded in the button code, so Up
-// becomes negative Y and Down becomes positive Y (libretro convention). Without
-// this, hitting an analog-mapped key crashes the helper with unrecognized selector.
-- (oneway void)didMovePSPJoystickDirection:(NSInteger)button withValue:(CGFloat)value forPlayer:(NSUInteger)player {
-    NSUInteger port = player > 0 ? player - 1 : 0;
-    int16_t scaled = (int16_t)(value * 0x7FFF);
-    switch (button) {
-        case 4: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_Y value:-scaled forPort:port]; break;
-        case 5: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_Y value: scaled forPort:port]; break;
-        case 6: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_X value:-scaled forPort:port]; break;
-        case 7: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_X value: scaled forPort:port]; break;
-        default: break;
-    }
-}
-
 - (oneway void)didPush7800Button:(NSInteger)button forPlayer:(NSUInteger)player {
     [self didPushOEButton:button forPlayer:player];
 }
@@ -1853,6 +1841,39 @@ static const uint8_t OEArcadeButtonToLibretro[] = {
     [self didPushOEButton:button forPlayer:player];
 }
 - (oneway void)didReleaseSegaCDButton:(NSInteger)button forPlayer:(NSUInteger)player {
+    [self didReleaseOEButton:button forPlayer:player];
+}
+
+// The systems below have analog handlers above; their digital push/release
+// handlers also need to exist to prevent the same unrecognized-selector
+// crash on any face-button press. They route through the generic OE
+// fallback — no verified per-system index mapping yet.
+
+- (oneway void)didPushGCButton:(NSInteger)button forPlayer:(NSUInteger)player {
+    [self didPushOEButton:button forPlayer:player];
+}
+- (oneway void)didReleaseGCButton:(NSInteger)button forPlayer:(NSUInteger)player {
+    [self didReleaseOEButton:button forPlayer:player];
+}
+
+- (oneway void)didPushPS2Button:(NSInteger)button forPlayer:(NSUInteger)player {
+    [self didPushOEButton:button forPlayer:player];
+}
+- (oneway void)didReleasePS2Button:(NSInteger)button forPlayer:(NSUInteger)player {
+    [self didReleaseOEButton:button forPlayer:player];
+}
+
+- (oneway void)didPushVectrexButton:(NSInteger)button forPlayer:(NSUInteger)player {
+    [self didPushOEButton:button forPlayer:player];
+}
+- (oneway void)didReleaseVectrexButton:(NSInteger)button forPlayer:(NSUInteger)player {
+    [self didReleaseOEButton:button forPlayer:player];
+}
+
+- (oneway void)didPushWiiButton:(NSInteger)button forPlayer:(NSUInteger)player {
+    [self didPushOEButton:button forPlayer:player];
+}
+- (oneway void)didReleaseWiiButton:(NSInteger)button forPlayer:(NSUInteger)player {
     [self didReleaseOEButton:button forPlayer:player];
 }
 
@@ -2113,18 +2134,131 @@ static const NSUInteger OEDCButtonCount = sizeof(OEDCButtonToLibretro) / sizeof(
     _isTouching = NO;
 }
 
+#pragma mark - Analog Joystick Responders
+
+// Each system's OE<Sys>SystemResponder calls didMove<Sys>JoystickDirection: on
+// its client. If we don't implement the selector here, the call crashes the
+// helper with "unrecognized selector sent to instance". Verified mappings
+// route to receiveLibretroAnalogIndex:axis:value:forPort: (same pattern as
+// N64/DC above). Systems whose RetroPad analog layout we haven't verified
+// keep an empty stub so the selector exists.
+
+- (oneway void)didMovePSPJoystickDirection:(NSInteger)button withValue:(CGFloat)value forPlayer:(NSUInteger)player {
+    // OEPSPAnalog{Up,Down,Left,Right} = 4..7 -> RetroPad LEFT analog stick.
+    NSUInteger port = player > 0 ? player - 1 : 0;
+    int16_t scaled = (int16_t)(value * 0x7FFF);
+    switch (button) {
+        case 4: // OEPSPAnalogUp
+            [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_Y value:-scaled forPort:port];
+            break;
+        case 5: // OEPSPAnalogDown
+            [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_Y value:scaled forPort:port];
+            break;
+        case 6: // OEPSPAnalogLeft
+            [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_X value:-scaled forPort:port];
+            break;
+        case 7: // OEPSPAnalogRight
+            [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_X value:scaled forPort:port];
+            break;
+        default:
+            break;
+    }
+}
+
+- (oneway void)didMoveGCJoystickDirection:(NSInteger)button withValue:(CGFloat)value forPlayer:(NSUInteger)player {
+    // OEGCAnalog{Up=4,Down=5,Left=6,Right=7}  -> LEFT stick
+    // OEGCAnalogC{Up=8,Down=9,Left=10,Right=11} -> RIGHT (C) stick
+    NSUInteger port = player > 0 ? player - 1 : 0;
+    int16_t scaled = (int16_t)(value * 0x7FFF);
+    switch (button) {
+        case 4:  [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_Y value:-scaled forPort:port]; break;
+        case 5:  [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_Y value: scaled forPort:port]; break;
+        case 6:  [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_X value:-scaled forPort:port]; break;
+        case 7:  [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_X value: scaled forPort:port]; break;
+        case 8:  [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_Y value:-scaled forPort:port]; break;
+        case 9:  [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_Y value: scaled forPort:port]; break;
+        case 10: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_X value:-scaled forPort:port]; break;
+        case 11: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_X value: scaled forPort:port]; break;
+        default: break;
+    }
+}
+
+- (oneway void)didMovePS2JoystickDirection:(NSInteger)button withValue:(CGFloat)value forPlayer:(NSUInteger)player {
+    // OEPS2LeftAnalog{Up=17,Down=18,Left=19,Right=20}  -> LEFT
+    // OEPS2RightAnalog{Up=21,Down=22,Left=23,Right=24} -> RIGHT
+    NSUInteger port = player > 0 ? player - 1 : 0;
+    int16_t scaled = (int16_t)(value * 0x7FFF);
+    switch (button) {
+        case 17: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_Y value:-scaled forPort:port]; break;
+        case 18: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_Y value: scaled forPort:port]; break;
+        case 19: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_X value:-scaled forPort:port]; break;
+        case 20: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_X value: scaled forPort:port]; break;
+        case 21: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_Y value:-scaled forPort:port]; break;
+        case 22: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_Y value: scaled forPort:port]; break;
+        case 23: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_X value:-scaled forPort:port]; break;
+        case 24: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_X value: scaled forPort:port]; break;
+        default: break;
+    }
+}
+
+- (oneway void)didMovePSXJoystickDirection:(NSInteger)button withValue:(CGFloat)value forPlayer:(NSUInteger)player {
+    // OEPSXLeftAnalog{Up=17,Down=18,Left=19,Right=20}  -> LEFT
+    // OEPSXRightAnalog{Up=21,Down=22,Left=23,Right=24} -> RIGHT
+    NSUInteger port = player > 0 ? player - 1 : 0;
+    int16_t scaled = (int16_t)(value * 0x7FFF);
+    switch (button) {
+        case 17: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_Y value:-scaled forPort:port]; break;
+        case 18: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_Y value: scaled forPort:port]; break;
+        case 19: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_X value:-scaled forPort:port]; break;
+        case 20: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT  axis:RETRO_DEVICE_ID_ANALOG_X value: scaled forPort:port]; break;
+        case 21: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_Y value:-scaled forPort:port]; break;
+        case 22: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_Y value: scaled forPort:port]; break;
+        case 23: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_X value:-scaled forPort:port]; break;
+        case 24: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_RIGHT axis:RETRO_DEVICE_ID_ANALOG_X value: scaled forPort:port]; break;
+        default: break;
+    }
+}
+
+- (oneway void)didMoveSaturnJoystickDirection:(NSInteger)button withValue:(CGFloat)value forPlayer:(NSUInteger)player {
+    // OESaturnLeftAnalog{Up=14,Down=15,Left=16,Right=17} -> LEFT stick.
+    // AnalogL/AnalogR (18/19) are triggers — left as no-op pending verified mapping.
+    NSUInteger port = player > 0 ? player - 1 : 0;
+    int16_t scaled = (int16_t)(value * 0x7FFF);
+    switch (button) {
+        case 14: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_Y value:-scaled forPort:port]; break;
+        case 15: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_Y value: scaled forPort:port]; break;
+        case 16: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_X value:-scaled forPort:port]; break;
+        case 17: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_X value: scaled forPort:port]; break;
+        default: break;
+    }
+}
+
+- (oneway void)didMoveVectrexJoystickDirection:(NSInteger)button withValue:(CGFloat)value forPlayer:(NSUInteger)player {
+    // OEVectrexAnalog{Up=0,Down=1,Left=2,Right=3} -> LEFT analog stick.
+    NSUInteger port = player > 0 ? player - 1 : 0;
+    int16_t scaled = (int16_t)(value * 0x7FFF);
+    switch (button) {
+        case 0: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_Y value:-scaled forPort:port]; break;
+        case 1: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_Y value: scaled forPort:port]; break;
+        case 2: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_X value:-scaled forPort:port]; break;
+        case 3: [self receiveLibretroAnalogIndex:RETRO_DEVICE_INDEX_ANALOG_LEFT axis:RETRO_DEVICE_ID_ANALOG_X value: scaled forPort:port]; break;
+        default: break;
+    }
+}
+
+- (oneway void)didMoveWiiJoystickDirection:(NSInteger)button withValue:(CGFloat)value forPlayer:(NSUInteger)player {
+    // Wii — Nunchuk + Classic Controller analog sticks are not yet mapped to a
+    // verified RetroPad layout. Stub exists so the selector call doesn't crash.
+    (void)button; (void)value; (void)player;
+}
+
 #pragma mark - Mouse/Keyboard Stubs
 
 - (void)mouseMovedAtPoint:(OEIntPoint)aPoint {}
 - (void)leftMouseDownAtPoint:(OEIntPoint)aPoint {}
-- (void)leftMouseUpAtPoint:(OEIntPoint)aPoint {}
+- (void)leftMouseUp {}
 - (void)rightMouseDownAtPoint:(OEIntPoint)aPoint {}
-- (void)rightMouseUpAtPoint:(OEIntPoint)aPoint {}
-// No-arg variants — SNES, PC-FX, Saturn, PSX, Sega CD, Atari etc. responders
-// call these (not the at-point form) when a button comes up. Without stubs the
-// libretro bridge raises unrecognized-selector and OpenEmu kills the helper.
-- (oneway void)leftMouseUp {}
-- (oneway void)rightMouseUp {}
+- (void)rightMouseUp {}
 - (void)keyDown:(unsigned short)keyCode characters:(NSString *)characters charactersIgnoringModifiers:(NSString *)charactersIgnoringModifiers flags:(NSEventModifierFlags)flags {}
 - (void)keyUp:(unsigned short)keyCode characters:(NSString *)characters charactersIgnoringModifiers:(NSString *)charactersIgnoringModifiers flags:(NSEventModifierFlags)flags {}
 
