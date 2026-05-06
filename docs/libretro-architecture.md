@@ -35,8 +35,9 @@ It's a normal macOS bundle. The relevant Info.plist fields:
 | `OEGameCorePluginClassName` | Points to the libretro host class |
 | `OELibretroCorePath` | Absolute path to the user's external `.dylib` |
 | `OEGameCoreSystemIdentifiers` | Which OpenEmu systems this core handles |
+| `OEBridgeVersion` | Version stamp matching `OELibretroBridgeVersion` at install time. On app launch, `refreshStaleRetroArchStubs()` compares this against the running app's value and refreshes the stub's executable if they differ. |
 
-The host app's plugin loader doesn't care that the binary is wrapped — it loads the bundle, instantiates the plugin class, and the plugin class is the libretro host configured to `dlopen` the `.dylib` at the recorded path.
+The host app's plugin loader doesn't care that the binary is wrapped — it loads the bundle, instantiates the plugin class, and the plugin class is the libretro host configured to `dlopen` the `.dylib` at the recorded path. The stub's own `Contents/MacOS/` executable is a copy of the OE-side translator binary (the **bundled libretro bridge**, see below), seeded by `PrefCoresController._createPlugin` at install time and refreshed automatically on every app launch.
 
 ---
 
@@ -52,6 +53,42 @@ The host app's plugin loader doesn't care that the binary is wrapped — it load
 | Env callback dispatch | (internal) | Handles `RETRO_ENVIRONMENT_*` requests from the core |
 
 Cross-cutting libretro features go here, **once**. That is the entire reason the host exists.
+
+---
+
+## Bridge propagation: auto-refresh on launch
+
+Each installed `*-RetroArch.oecoreplugin` stub carries its own copy of the translator binary in `Contents/MacOS/`. Without a propagation mechanism, every fix to `OELibretroCoreTranslator` would require users to reinstall every RetroArch core they have set up. The bundled bridge plus the launch-time refresh closes that gap.
+
+Two version constants drive the comparison:
+
+- `OELibretroBridgeVersion` — defined in `OELibretroCoreTranslator.m` (and externed in the matching `.h`). The running app's value, baked into the binary at build time. Bump this whenever you change `OELibretroCoreTranslator`.
+- `OEBridgeVersion` — a per-stub stamp written into each `*-RetroArch.oecoreplugin/Contents/Info.plist` at install time and overwritten whenever the stub is refreshed.
+
+Lifecycle, in order:
+
+1. App launches. `applicationWillFinishLaunching` (in `OpenEmu/AppDelegate.swift`) calls `refreshStaleRetroArchStubs()`.
+2. The function walks `~/Library/Application Support/OpenEmu/Cores/` for every `*-RetroArch.oecoreplugin`.
+3. For each stub whose `OEBridgeVersion` is missing or `!= OELibretroBridgeVersion`, it copies `OpenEmu.app/Contents/PlugIns/OpenEmuLibretroBridge.oecoreplugin/Contents/MacOS/OpenEmuLibretroBridge` over the stub's executable, writes the new version into the stub's plist, and ad-hoc codesigns the result.
+4. Outcomes (which stubs were refreshed, which failed and why) are summarized in `~/Library/Logs/OpenEmu/core-inventory.txt` per launch.
+
+Initial install path: `PrefCoresController._createPlugin` (in `OpenEmu/PrefCoresController.swift`) seeds the stub's executable from the bundled bridge and stamps `OEBridgeVersion` at the same time. As a transition-period safety it falls back to a translator binary copied from an installed native core if the bundled bridge isn't present on disk yet.
+
+```
+OpenEmu.app/
+  Contents/
+    PlugIns/
+      OpenEmuLibretroBridge.oecoreplugin/      ← shipped with the app
+        Contents/MacOS/OpenEmuLibretroBridge   ← source binary
+
+~/Library/Application Support/OpenEmu/Cores/
+  Flycast-RetroArch.oecoreplugin/              ← user-installed stub
+    Contents/
+      Info.plist                               ← OEBridgeVersion lives here
+      MacOS/Flycast-RetroArch                  ← copy of the bridge binary, refreshed at launch
+```
+
+Developer-facing rule (when to bump `OELibretroBridgeVersion`) lives in the "Libretro Bridge Version Bumps" section of `AGENTS.md`.
 
 ---
 
