@@ -49,11 +49,17 @@ private struct RetroArchCore {
     let systemIDs: [String]    // OE system identifiers
     let requiresHWRender: Bool // true → needs OpenGL/Vulkan context the bridge can't yet provide
 
-    var bundleIdentifier: String {
-        "retroarch.\(dylibURL.deletingPathExtension().lastPathComponent)"
-    }
-
     var pluginName: String { "\(coreName)-RetroArch" }
+
+    var bundleIdentifier: String {
+        let plistURL = installedPluginURL.appendingPathComponent("Contents/Info.plist")
+        if let data = try? Data(contentsOf: plistURL),
+           let plist = (try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)) as? [String: Any],
+           let id = plist["CFBundleIdentifier"] as? String {
+            return id
+        }
+        return "org.openemu.\(pluginName)"
+    }
 
     var installedPluginURL: URL {
         let coresDir = FileManager.default.homeDirectoryForCurrentUser

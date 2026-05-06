@@ -370,6 +370,32 @@ class AppDelegate: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    /// Rewrites legacy `defaultCore.<sysID>` values that hold the old
+    /// synthetic `retroarch.<dylib>` bundle ID — which never resolved through
+    /// `OECorePlugin.corePlugin(bundleIdentifier:)` and silently fell through
+    /// to alphabetical tiebreak. Picks the first installed RA stub for the
+    /// system; if none is installed, removes the pref so the resolver picks a
+    /// native default.
+    fileprivate func migrateStaleRACoreDefaults() {
+        let defaults = UserDefaults.standard
+        for (key, value) in defaults.dictionaryRepresentation()
+            where key.hasPrefix("defaultCore.") {
+            guard
+                let stale = value as? String,
+                stale.hasPrefix("retroarch."),
+                OECorePlugin.corePlugin(bundleIdentifier: stale) == nil
+            else { continue }
+
+            let systemID = String(key.dropFirst("defaultCore.".count))
+            if let real = OECorePlugin.corePlugins(forSystemIdentifier: systemID)
+                .first(where: { $0.bundleIdentifier.hasSuffix("-RetroArch") }) {
+                defaults.set(real.bundleIdentifier, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+    }
+
     /// Walks every installed `*-RetroArch.oecoreplugin` and refreshes any
     /// stub whose `OEBridgeVersion` doesn't match the running app's
     /// `OELibretroBridgeVersion`. The bridge code is bundled with the app at
@@ -1111,6 +1137,7 @@ extension AppDelegate: NSMenuDelegate {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
 
         validateDefaultPluginAssignments()
+        migrateStaleRACoreDefaults()
         logCorePluginInventory()
 
         DispatchQueue.main.async {
