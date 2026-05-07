@@ -5,7 +5,38 @@
     <link>https://github.com/nickybmon/OpenEmu-Silicon/releases</link>
     <description>Most recent changes with links to updates.</description>
     <language>en</language>
-                        <item>
+                            <item>
+      <title>OpenEmu-Silicon 1.1.1</title>
+      <description>
+        <![CDATA[
+        <h2>OpenEmu-Silicon 1.1.1</h2>
+        <h3>What's New in 1.1.1</h3>
+        <h3>Bug Fixes</h3>
+        <ul>
+        <li>Arcade system now appears in the sidebar after installing an Arcade core</li>
+        <li>Game lookup now falls back to the local database and libretro when ScreenScraper is unavailable or returns an error</li>
+        <li>ScreenScraper credentials in Preferences are now verified when you save them — no more false green checkmark</li>
+        <li>Fixed several app hangs on macOS Sequoia (input monitoring alert, XPC game launch)</li>
+        <li>Fixed a crash on first install when a core update error appeared at launch</li>
+        <li>Fixed a hang in the BIOS preferences panel</li>
+        </ul>
+        <h3>Under the Hood</h3>
+        <ul>
+        <li>Crash reporting now covers the XPC helper process and core plugin binaries</li>
+        </ul>
+        ]]>
+      </description>
+      <pubDate>Thu, 07 May 2026 22:41:11 +0000</pubDate>
+      <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+      <enclosure
+        url="https://github.com/nickybmon/OpenEmu-Silicon/releases/download/v1.1.1/OpenEmu-Silicon.dmg"
+        sparkle:version="13"
+        sparkle:shortVersionString="1.1.1"
+        sparkle:edSignature="1aZV/bCyaNlw9hmCMEQEuBcUNN2T3g15qWrMN42+dvRPzWBXRQ4Av6t2N+swKwcp9nMH6xcRZWfa67Y94h8nBw=="
+        length="49138733"
+        type="application/octet-stream"/>
+    </item>
+<item>
       <title>OpenEmu-Silicon 1.1.0</title>
       <description>
         <![CDATA[
