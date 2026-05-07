@@ -280,7 +280,7 @@ echo "  DMG:     $DMG"
 echo "  Appcast: appcast.xml (committed and pushed)"
 echo "  Draft:   https://github.com/nickybmon/OpenEmu-Silicon/releases/tag/$TAG"
 echo ""
-if echo "$NOTES_HTML" | grep -q "TODO"; then
+if [ -z "$NOTES_FILE" ] || [ ! -f "$NOTES_FILE" ]; then
   echo "  ACTION REQUIRED before publishing:"
   echo "  → Edit the release notes in appcast.xml (search for 'TODO')"
   echo "  → Edit the draft release notes on GitHub"
