@@ -34,9 +34,7 @@ What this looks like in practice:
 - Both → run both
 - Scripts / CI / docs only → no verify needed
 
-**Do not run `/verify` redundantly right before `git push` if the code hasn't changed.** The pre-push hook uses a tree-hash stamp: if the files being pushed are identical to what was last verified, it skips the rebuild and the push is instant. Running verify again on unchanged code creates two concurrent xcodebuild invocations racing on the same build.db — the source of repeated "database is locked" failures.
-
-If code changed after the last verify run (a post-review fix, an additional commit, anything), the stamp is automatically invalidated and the hook rebuilds correctly. In that case, you can either run `/verify` first to catch failures early, or just push and let the hook catch them — either way there is only one build.
+**The pre-push hook does not run a build.** Build verification runs on GitHub CI (`build-check.yml`) on every pull request. Run `/verify` during development to catch issues early; it is not required before pushing.
 
 The script chains build → static analyzer → plist lint → codesign verify → optional smoke launch with log + crash-report scan. Read its full output — don't pipe through `tail`. Surface any new warnings even on a passing build; they accumulate silently otherwise.
 

@@ -1,7 +1,7 @@
 Run the full git shipping loop for the current branch.
 
 1. Confirm the branch name matches the work being done. If not, stop and ask.
-2. **Do not run `./Scripts/verify.sh` here.** The pre-push hook runs it automatically during `git push`. Running it separately before pushing creates two concurrent builds that fight over Xcode's build.db lock — which is exactly the failure loop this repo has been stuck in. The hook has a stamp mechanism: if you ran `/verify` during development on the same code, the hook skips the rebuild and the push is fast. If you didn't, the hook runs it once. Either way: one build, one trigger.
+2. **Do not run `./Scripts/verify.sh` here.** The pre-push hook is advisory only and does not run a build. GitHub CI (`build-check.yml`) runs the build check on every PR. Run `/verify` during development if you want a local build confirmation, but it is not required before pushing.
 3. **Adversarial review.** Run this command and show the output:
    ```bash
    git diff main...HEAD | wc -l
