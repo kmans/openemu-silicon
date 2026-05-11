@@ -2,14 +2,21 @@ Start a new work session. Run this at the beginning of every session before touc
 
 ## Steps
 
-### 1. Sync main
+### 1. Clean up and sync
 
 ```bash
-git checkout main
-git fetch origin && git merge origin/main
+git cleanup
 ```
 
+This fetches, prunes stale remote refs, syncs main, and deletes any local branches whose remote was deleted after merge. Run it first, every time — this is what keeps the repo from accumulating dozens of orphaned branches.
+
 If there are uncommitted changes on main, stop and report — do not proceed until they are resolved.
+
+Also clear any stale stashes — list them and drop any that are orphaned (saved on a branch that no longer exists or describes work that's been merged):
+
+```bash
+git stash list
+```
 
 ### 2. Pull live project state
 
