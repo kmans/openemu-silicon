@@ -10,7 +10,32 @@
       <description>
         <![CDATA[
         <h2>OpenEmu-Silicon 1.1.2</h2>
-        <p>TODO: add release notes before publishing.</p>
+        <h3>What's New in 1.1.2</h3>
+        <ul>
+        <li><strong>Folder backup</strong> — OpenEmu can now back up your save states and battery saves to a folder of your choice. Set a backup destination in Preferences → Library.</li>
+        <li><strong>RetroAchievements hardcore mode</strong> — A new toggle in Preferences → RetroAchievements enables hardcore mode, which disables save states, rewind, and cheats to meet RetroAchievements' official requirements for earning points.</li>
+        <li><strong>RetroAchievements system indicators</strong> — The Cores preferences pane now shows a trophy icon next to cores that support RetroAchievements, so you can see at a glance which systems have achievement support.</li>
+        </ul>
+        <h3>Bug Fixes</h3>
+        <ul>
+        <li>Fixed PPSSPP (PSP) crashing and showing a black screen on macOS 26 in release builds — requires updating both the app and the PPSSPP core.</li>
+        <li>Fixed 4DO (3DO) audio playing at half speed and games showing a black screen on launch.</li>
+        <li>Fixed N64 emulation crashes caused by a render thread deadlock. N64 games should be significantly more stable.</li>
+        <li>Fixed games imported from a NAS or relocated library not re-appearing after the library path was updated.</li>
+        <li>Fixed a crash when creating save states that could occur under heavy load (CoreData cross-context conflict).</li>
+        <li>Fixed app hangs reported in Sentry caused by modal alert dialogs blocking the main thread.</li>
+        <li>Fixed a crash and credential loss that could occur when switching between save state and quicksave during certain transitions.</li>
+        <li>Fixed Arcade not appearing as a system in the Library sidebar.</li>
+        <li>Fixed light mode: sidebar, window background, and content area now use correct adaptive colors instead of hardcoded dark values.</li>
+        <li>Fixed ScreenScraper artwork matching — system IDs corrected, filename fallback added, and redundant lookups skipped when OpenVGDB already returned a full result.</li>
+        <li>Fixed ScreenScraper credentials not being verified automatically when the preferences pane loads.</li>
+        </ul>
+        <h3>Core Updates</h3>
+        <p>Eight cores received RetroAchievements support (Game Boy / GBC via Gambatte, NES / FDS via Nestopia, SNES via SNES9x, GBA via mGBA, PSX via Mednafen). Flycast, Mupen64Plus, and PPSSPP also received bug fixes. All 26 cores were rebuilt and re-signed.</p>
+        <h3>Under the Hood</h3>
+        <ul>
+        <li>Replaced the macOS Keychain credential store with an AES-GCM encrypted file store, fixing a class of hang and crash on macOS Sequoia where Keychain prompts could block the main thread.</li>
+        </ul>
         ]]>
       </description>
       <pubDate>Tue, 12 May 2026 12:56:16 +0000</pubDate>
