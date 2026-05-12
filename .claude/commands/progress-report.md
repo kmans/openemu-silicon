@@ -94,17 +94,18 @@ gh api \
 # PR authors from step 2 — check which are new
 ```
 
-### 6. Draft the Progress Report
+### 6. Pull community engagement from issue threads
 
-Using the data above and the template in `docs/progress-report-template.md`, draft a filled-in Progress Report. Structure:
+For every closed issue in the period, scan comment threads for non-@nickybmon activity. Paginate all issue comments to catch everyone:
 
-- **Opening paragraph** — what was the big theme of this period?
-- **Highlights** — 3–5 most significant changes, with PR numbers and contributors
-- **Core Updates** — submodule bumps with version changes (skip if none)
-- **RetroAchievements** — RA-specific news (skip section entirely if none)
-- **Bug Fixes** — fixes not covered in Highlights
-- **Contributors This Period** — everyone, code and non-code; flag first-timers explicitly
-- **What's Next** — pull from open `help wanted` and `good first issue` issues
+```bash
+for page in 1 2 3 4 5 6; do
+  gh api "repos/nickybmon/OpenEmu-Silicon/issues/comments?per_page=100&page=$page&sort=created&direction=desc" \
+    --jq '.[] | select(.user.login != "nickybmon") | "Issue \(.issue_url | split("/") | last) [\(.user.login)]: \(.body[:200])"' 2>/dev/null
+done
+```
+
+For anyone with substantive activity (crash logs, repro steps, multi-comment threads, screen recordings, testing across builds), read their full thread before writing about them. The story of how a bug got fixed is usually more interesting than the fix itself.
 
 ```bash
 # Pull current help wanted issues for the "What's Next" section
@@ -117,42 +118,74 @@ gh issue list \
   --jq '.[] | "#\(.number) \(.title)"'
 ```
 
-### 7. Draft the companion Release Notes
+### 7. Draft the Progress Report
 
-Draft a slim release note that complements, not duplicates, the Progress Report:
+**Voice and tone — this is the most important instruction in this skill.**
+
+Nick is not a developer by trade. He's learning as he goes. The Progress Report should read like something he actually wrote — casual, personal, story-first. Not a formatted changelog. Not a technical release notes page with extra sections. Something you'd want to read.
+
+Rules:
+- Open like a person talking to their community, not like a product announcement. "Hey everyone! 👋" and one or two sentences on the theme of the month. No lengthy intro about what the project is.
+- **Tell the story of bugs, don't just list them.** The PSP saga — 16 comments, multiple failed theories, a crash report that finally cracked it — is more interesting than "Fixed PPSSPP JIT crash." Find the story and tell it briefly.
+- **No em dashes (—).** Nick's preference. Rewrite any sentence that would use one. Use a period, a colon, or restructure the sentence.
+- **No PR numbers in the body text.** The Progress Report is not a changelog. Save numbers for the release notes.
+- **Contributors section uses bullet points, not paragraphs.** One bullet per person. Say what specifically they did and why it mattered. "Thanks to @X for testing" is not enough. "@X went through 16 comments and never got frustrated" is right.
+- **"The stuff that was quietly annoying people" uses bullet points.** Fixes that matter but don't need their own section live here as a tight list.
+- Skip "What's coming" unless there's something genuinely interesting to say. Don't pad it.
+- Skip the "what this is" intro section. Nick's audience knows the project.
+- End short and personally. "Thanks for using this. It's been fun." Not corporate, not AI-sounding.
+- Emoji are fine where Nick would naturally use them (opener, section headers).
+
+Structure (loose — adjust to what the data actually supports):
+- Opening: "Hey everyone! 👋" + one or two sentences on the month's theme
+- Major features as named sections with their own stories
+- "The stuff that was quietly annoying people" — bullet list of fixes
+- "People who made this better 🙇‍♂️" — bullet list, one per contributor
+- "Come get involved" — links to good first issue / help wanted
+- Short personal sign-off
+
+### 8. Draft the companion Release Notes
+
+The release notes are distinct from the Progress Report — shorter, more structured, and linked to the Discussion for the full story. Don't duplicate the Progress Report's narrative in the release notes.
 
 ```
 v[VERSION] — [ONE-LINE SUMMARY]
 
-[ONE PARAGRAPH — what's in this release, why it matters]
+[ONE SHORT PARAGRAPH — what's in this release, why it matters]
 
-#### Changes
-[BULLET LIST of fixes/improvements with PR numbers]
+## What's New
+[BULLET LIST — features only]
 
-#### Contributors
-[NAMES]
+## Bug Fixes
+[BULLET LIST with PR numbers]
+
+## Core Updates
+[brief summary]
+
+## Community
+[One sentence naming everyone who contributed bug reports, testing, or review]
+
+## Known Issues
+[None / list with issue links]
+
+## Installation
+Download the `.dmg` from the assets below. Requires macOS 11.0 or later on Apple Silicon.
 
 Full details in the [Month Year Progress Report](LINK_PLACEHOLDER — fill in after publishing the Discussion).
-
-#### Installation
-Download from the assets below. Requires macOS 11.0 or later on Apple Silicon.
-
-#### Known Issues
-[None / list]
 ```
 
-### 8. Output
+### 9. Output
 
 Present both drafts in sequence:
-1. **Progress Report** (for GitHub Discussions → Announcements) — ready to copy-paste and edit
-2. **Release Notes** (for the GitHub Release) — short, with a placeholder for the Discussion link
+1. **Progress Report** — the full narrative draft, ready to paste into GitHub Discussions → Announcements
+2. **Release Notes** — the short companion, with `LINK_PLACEHOLDER` for the Discussion URL
 
-Label any section where data was ambiguous or missing. The user fills in judgment calls — this is a first draft, not a finished document.
+Remind the user to fill in `LINK_PLACEHOLDER` in the release notes after publishing the Discussion. If the release is already live, offer to update it directly via `gh release edit`.
 
 ## Notes
 
 - Always credit the contributor handle (not just the PR number) — recognition is the point.
-- Flag first-time contributors explicitly in both drafts.
-- If the RA section has nothing to report, omit it entirely rather than leaving it empty.
+- Paginate issue comments fully — the default limit misses people.
+- If the RA section has nothing to report, fold it into the relevant feature section rather than leaving an empty heading.
 - The release notes link to the Discussion — fill in that link after the Discussion is published.
-- Run the pre-publish checklist from `docs/progress-report-template.md` before handing off to the user.
+- The Progress Report is NOT a technical document. If it sounds like AI wrote it, rewrite it.
