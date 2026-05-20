@@ -274,7 +274,7 @@ git -C "$REPO_ROOT" add "$APPCAST" "$CASK_FILE" \
 if [ ! -f "$REPO_ROOT/Releases/notes-${VERSION}.md" ]; then
   die "Release notes not found: Releases/notes-${VERSION}.md — run prep-release first."
 fi
-git -C "$REPO_ROOT" add "Releases/notes-${VERSION}.md"
+git -C "$REPO_ROOT" add -f "Releases/notes-${VERSION}.md"
 git -C "$REPO_ROOT" commit -m "chore: release v$VERSION — update appcast, cask, and version bump"
 git -C "$REPO_ROOT" push origin main
 
