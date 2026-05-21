@@ -93,6 +93,8 @@ Rules for drafting:
 - Omit the "Under the Hood" section if there's nothing meaningful to say to users
 - If the git log is empty or only has noise commits, write a single bullet: "General stability improvements"
 
+**Contributor credits:** For each commit that references a PR number, look up that PR's body for `Fixes #N` / `Related to #N` patterns, then look up those issues to find the original reporter. If the reporter is not `nickybmon`, append `(thanks @username, #N)` to the bullet. If the fix came from Sentry telemetry (no user-filed issue), omit the credit — there's no one to thank. Use `gh issue view N --repo nickybmon/OpenEmu-Silicon --json author` to get the reporter.
+
 After writing the file, print its contents so the user can see the draft.
 
 ## Step 4.5 — Check for unreleased core updates
@@ -163,25 +165,32 @@ The script will:
 4. Update `Casks/openemu-silicon.rb` with the new version and DMG SHA256
 5. Run `sign_update` to get the EdDSA signature
 6. Prepend a new entry to `appcast.xml` with the correct signature and length
-7. Create a **draft** GitHub Release and upload the DMG
-8. Commit and push `appcast.xml`, Homebrew cask, version bump files, and release notes together in one commit to main
+7. Commit to a `chore/release-vVERSION` branch and open a **draft PR** targeting main
+8. Push the version tag so the GitHub Release download URL is valid immediately
+9. Create a **draft** GitHub Release and upload the DMG
+
+The appcast does not go live until the PR is merged. CI version checks run on the PR first.
 
 ## Step 8 — Report and hand off
 
 After the script completes, report:
 - Build number and version shipped
-- Commit SHA for the appcast update
+- PR URL for the release branch
 - Direct link to the draft release: `https://github.com/nickybmon/OpenEmu-Silicon/releases`
 
 Then tell the user:
 
 ```
-Draft release vVERSION is ready for your review.
+Draft release vVERSION is ready.
 
-When you are satisfied with the release notes and have done final testing, publish with:
-  gh release edit vVERSION --draft=false --repo nickybmon/OpenEmu-Silicon
+Next steps:
+1. Let CI pass on the PR
+2. Review and test the DMG
+3. Merge the PR — this makes the Sparkle update live for users
+4. Publish the GitHub Release:
+   gh release edit vVERSION --draft=false --repo nickybmon/OpenEmu-Silicon
 
-** Do not ask me to run that command. Publishing is always your call. **
+** Do not ask me to run that last command. Publishing is always your call. **
 ```
 
 Do NOT run `gh release edit ... --draft=false` under any circumstances.
