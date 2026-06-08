@@ -111,6 +111,7 @@ final class PrefCoresController: NSViewController {
 
     private var tableView: NSTableView!
     private var scrollView: NSScrollView!
+    private var warningBanner: NSTextField!
 
     private var entries: [SystemEntry] = []
     private var coreListObservation: NSKeyValueObservation?
@@ -151,7 +152,22 @@ final class PrefCoresController: NSViewController {
         scroll.documentView = table
         self.tableView  = table
         self.scrollView = scroll
-        self.view = scroll
+
+        let warning = NSTextField(wrappingLabelWithString: "")
+        warning.textColor = .systemOrange
+        warning.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        warning.isHidden = true
+        self.warningBanner = warning
+
+        // NSStackView collapses hidden views to zero height automatically,
+        // so the table fills the full space when no collision banner is shown.
+        let stack = NSStackView(views: [warning, scroll])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.distribution = .fill
+        stack.spacing = 4
+        stack.edgeInsets = NSEdgeInsets(top: 6, left: 8, bottom: 0, right: 8)
+        self.view = stack
     }
 
     override func viewDidLayout() {
@@ -188,6 +204,14 @@ final class PrefCoresController: NSViewController {
     }
 
     private func applyEntries(retroArchCores allRetroArch: [RetroArchCore]) {
+        let collisions = OECorePlugin.collidingBundleIdentifiers
+        if collisions.isEmpty {
+            warningBanner.isHidden = true
+        } else {
+            let names = collisions.sorted().joined(separator: ", ")
+            warningBanner.stringValue = "⚠ Duplicate core bundles detected: \(names). Open ~/Library/Application Support/OpenEmu/Cores/ and remove the extra copy of each affected core."
+            warningBanner.isHidden = false
+        }
         var map: [String: (name: String, cores: [CoreDownload])] = [:]
         for core in CoreUpdater.shared.coreList {
             for sysID in core.systemIdentifiers {
