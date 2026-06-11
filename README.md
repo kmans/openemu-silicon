@@ -88,7 +88,7 @@ The original project went quiet around 2024 after the last release. By that time
 
 ## A Note on AI-Assisted Development
 
-I work on this project with AI assisted development practices — they help me write and debug code I couldn't write alone. I review every change, test everything, and make all the calls about direction and quality. I'm transparent about this because honesty with the community matters more than maintaining an illusion of expertise I don't have. The goal is to keep something good alive and make it genuinely usable for players.
+The vast majority of the code in this repo is still from the original developers. I have not changed the underlying architecture or approach for the app (apart form having it in a single repo to make it easier for a small team to maintain), it is still the same work done by an exceptional team of engineers. I work on this project with AI assisted development practices. These tools help me write and debug code I couldn't write alone. That said, I review every change, test everything, and make all the calls about direction and quality. I'm transparent about this because honesty with the community matters more than maintaining an illusion of expertise I don't have. The goal is to keep something good alive and make it genuinely usable for players.
 
 ---
 
