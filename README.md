@@ -18,22 +18,13 @@ This is a community-maintained fork of OpenEmu for M-series Macs. The app runs o
 
 > **Download:** Get the latest signed DMG from the **[Releases](https://github.com/nickybmon/OpenEmu-Silicon/releases)** page. The app is notarized — no Gatekeeper workaround needed.
 
----
-
-## What this fork is (and isn't)
-
-OpenEmu is the work of an exceptional team of developers who built one of the finest pieces of Mac software ever made — and kept improving it for over a decade.
-
-[**stuartcarnie**](https://github.com/stuartcarnie) added Metal rendering in 2019, replacing OpenGL across the entire app and delivering a significant improvement to frame pacing, battery life, and display quality. [**MaddTheSane**](https://github.com/MaddTheSane) (C.W. Betts) did the ARM64 porting work across the emulation cores starting in January 2021 — removing x86-only architecture restrictions, updating static libraries, adding ARM64 linkage support, and making architecture-specific CPU code conditional. The top contributors by commit count — [**cyco**](https://github.com/cyco), [**clobber**](https://github.com/clobber), [**J-rg**](https://github.com/J-rg), and others — built the app, the plugin architecture, and the library experience that makes OpenEmu what it is. None of that work originated here.
-
-What never happened is a release. The ARM64 core work landed in the repos and stayed there. The last official binary (OpenEmu 2.4.1, December 2023) was Intel-only — explicitly stated in its release notes. [**bazley82**](https://github.com/bazley82) was the first to assemble those ARM64-capable cores into a downloadable build in early 2026. This fork continued from there.
-
-**What this fork provides:**
-- **A downloadable, notarized, native ARM64 binary** — the original project's ARM64 work was never published as a release.
-- **Active maintenance** — macOS 26 (Tahoe) compatibility, updated cores, and ongoing bug fixes.
-- **New features not in the original** — RetroAchievements, ScreenScraper cover art, RetroArch Core Support, Google Drive save sync (being verified by Google), and several new or restored systems, such as Dolphin, PPSSPP (RetroArch), and Flycast.
-
-**On Rosetta 2:** Apple has confirmed that starting with macOS 26.4, the OS will notify users each time they launch a Rosetta-dependent app. If you want to stay ahead of that, this fork is a drop-in replacement. ([full details on the wiki](https://github.com/nickybmon/OpenEmu-Silicon/wiki/Why-Native-ARM64-Matters))
+### Recent Updates
+- RetroAchievements verified with official hardcore mode support across Phase 1 Systems, [see wiki for more details](https://github.com/nickybmon/OpenEmu-Silicon/wiki/RetroAchievements)
+- Improved Gamecube performance via Dolphin and Wii is officially working, though still a bit experimental.
+- Arcade is officially working via MAME, though remains experimental and requires additional testing.
+- Sony PSP (PPSSPP), Dreamcast (Flycast) , and Nintendo DS (DeSmuME) have all recently been added and seem to stable for most users and hardware.
+- Automatic Backup Folder for backing up battery saves and BIOS files
+- Cheats now save and persist across game sessions
 
 ---
 
